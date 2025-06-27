@@ -22,6 +22,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "electron-serve": "^2.1.1",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.1",
     "lucide-react": "^0.475.0",
     "mqtt": "^5.10.4",
     "next": "^15.1.7",

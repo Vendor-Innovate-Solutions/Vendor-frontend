@@ -5,6 +5,8 @@ import { fetchWithAuth, API_URL } from "@/utils/auth_fn"
 import { useRouter } from "next/navigation"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { FileText } from "lucide-react"
+import jsPDF from "jspdf"
+import html2canvas from "html2canvas"
 
 // Fallback Button Component using div to avoid button conflicts
 type FallbackButtonProps = {
@@ -270,6 +272,7 @@ export default function VendorBills() {
   const [showModal, setShowModal] = useState(false)
   const printRef = useRef<HTMLDivElement>(null)
   const [shouldDownload, setShouldDownload] = useState(false)
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
 
   useEffect(() => {
     const fetchBills = async () => {
@@ -296,35 +299,414 @@ export default function VendorBills() {
     fetchBills()
   }, [])
 
-  // Opens a new window containing only the invoice markup and triggers print
-  const handlePrint = React.useCallback(() => {
-    if (!printRef.current) return
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="UTF-8" />
-          <title>${selectedBill?.invoice_number ?? "Invoice"}</title>
-          <style>
-            body { background:#1E40AF;color:white;margin:0;padding:24px;font-family:Arial,sans-serif; }
-            table,th,td { border:1px solid #fff;border-collapse:collapse; }
-            th { background:#1E90FF; }
-            * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-          </style>
-        </head>
-        <body>${printRef.current.outerHTML}</body>
-      </html>`
-    const win = window.open("", "_blank", "width=900,height=800")
-    if (!win) return
-    win.document.open()
-    win.document.write(html)
-    win.document.close()
-    setTimeout(() => {
-      win.focus()
-      win.print()
-      win.close()
-    }, 300)
-  }, [printRef, selectedBill])
+  // Generate PDF from HTML content
+  const generatePDF = async (forPrint = false): Promise<jsPDF | null> => {
+    if (!printRef.current || !selectedBill) return null
+
+    setIsGeneratingPDF(true)
+
+    try {
+      // Create a temporary container with white background for better PDF rendering
+      const tempContainer = document.createElement("div")
+      tempContainer.style.position = "absolute"
+      tempContainer.style.left = "-9999px"
+      tempContainer.style.top = "0"
+      tempContainer.style.width = "210mm" // A4 width
+      tempContainer.style.backgroundColor = "white"
+      tempContainer.style.color = "black"
+      tempContainer.style.padding = "20px"
+      tempContainer.style.fontFamily = "Arial, sans-serif"
+
+      // Clone the content and modify for PDF
+      const clonedContent = printRef.current.cloneNode(true) as HTMLElement
+
+      // Update styles for PDF (convert from dark theme to light theme)
+      const updateElementStyles = (element: HTMLElement) => {
+        // Change background colors
+        if (element.style.backgroundColor === "rgb(30, 64, 175)" || element.classList.contains("bg-[#1E40AF]")) {
+          element.style.backgroundColor = "white"
+        }
+        if (element.classList.contains("bg-blue-900")) {
+          element.style.backgroundColor = "#e5e7eb"
+        }
+
+        // Change text colors
+        element.style.color = "black"
+
+        // Update table borders
+        if (element.tagName === "TABLE" || element.tagName === "TH" || element.tagName === "TD") {
+          element.style.border = "1px solid black"
+          element.style.borderCollapse = "collapse"
+        }
+
+        // Update header styling
+        if (element.tagName === "TH") {
+          element.style.backgroundColor = "#f3f4f6"
+          element.style.fontWeight = "bold"
+        }
+
+        // Process child elements
+        Array.from(element.children).forEach((child) => {
+          updateElementStyles(child as HTMLElement)
+        })
+      }
+
+      updateElementStyles(clonedContent)
+      tempContainer.appendChild(clonedContent)
+      document.body.appendChild(tempContainer)
+
+      // Generate canvas from the temporary container
+      const canvas = await html2canvas(tempContainer, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "white",
+        width: tempContainer.scrollWidth,
+        height: tempContainer.scrollHeight,
+      })
+
+      // Remove temporary container
+      document.body.removeChild(tempContainer)
+
+      // Create PDF
+      const imgData = canvas.toDataURL("image/png")
+      const pdf = new jsPDF("p", "mm", "a4")
+
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = pdf.internal.pageSize.getHeight()
+      const imgWidth = pdfWidth - 20 // 10mm margin on each side
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+
+      let heightLeft = imgHeight
+      let position = 10 // 10mm top margin
+
+      // Add first page
+      pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight)
+      heightLeft -= pdfHeight - 20 // Account for margins
+
+      // Add additional pages if needed
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight + 10
+        pdf.addPage()
+        pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight)
+        heightLeft -= pdfHeight - 20
+      }
+
+      return pdf
+    } catch (error) {
+      console.error("Error generating PDF:", error)
+      return null
+    } finally {
+      setIsGeneratingPDF(false)
+    }
+  }
+
+  // Handle print - use browser's native print functionality
+  const handlePrint = React.useCallback(async () => {
+    if (!printRef.current || !selectedBill) return
+
+    // Create a new window with print-optimized HTML
+    const printWindow = window.open("", "_blank", "width=900,height=800")
+    if (!printWindow) {
+      alert("Please allow popups to enable printing")
+      return
+    }
+
+    // Create print-optimized HTML content
+    const printContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8" />
+        <title>Invoice - ${selectedBill.invoice_number || "N/A"}</title>
+        <style>
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          
+          body {
+            font-family: Arial, sans-serif;
+            background: white;
+            color: black;
+            padding: 20px;
+            line-height: 1.4;
+          }
+          
+          .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
+          }
+          
+          .company-info h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+          }
+          
+          .invoice-title {
+            font-size: 36px;
+            font-weight: bold;
+            color: #333;
+          }
+          
+          .billing-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+          }
+          
+          .billing-info, .invoice-details {
+            width: 45%;
+          }
+          
+          .billing-info h3, .invoice-details h3 {
+            margin-bottom: 10px;
+            font-size: 16px;
+          }
+          
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+          }
+          
+          th, td {
+            border: 1px solid #333;
+            padding: 8px;
+            text-align: left;
+          }
+          
+          th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+          }
+          
+          .totals-section {
+            width: 300px;
+            margin-left: auto;
+            margin-top: 20px;
+          }
+          
+          .totals-section div {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+          }
+          
+          .grand-total {
+            border-top: 2px solid #333;
+            font-weight: bold;
+            font-size: 18px;
+            padding-top: 10px !important;
+          }
+          
+          .footer-section {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 40px;
+            align-items: end;
+          }
+          
+          .signature-line {
+            width: 200px;
+            border-bottom: 1px solid #333;
+            height: 50px;
+          }
+          
+          @media print {
+            body { 
+              -webkit-print-color-adjust: exact; 
+              print-color-adjust: exact;
+            }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="invoice-header">
+          <div class="company-info">
+            <h1>${selectedBill.company?.name || "Company Name"}</h1>
+            <div>${selectedBill.company?.address || "Company Address"}</div>
+            ${selectedBill.company?.city ? `<div>City: ${selectedBill.company.city}</div>` : ""}
+            ${selectedBill.company?.state ? `<div>State: ${selectedBill.company.state}</div>` : ""}
+            ${selectedBill.company?.pincode ? `<div>Pincode: ${selectedBill.company.pincode}</div>` : ""}
+            ${selectedBill.company?.gstin ? `<div>GSTIN: ${selectedBill.company.gstin}</div>` : ""}
+            ${selectedBill.company?.email ? `<div>Email: ${selectedBill.company.email}</div>` : ""}
+            ${selectedBill.company?.phone ? `<div>Phone: ${selectedBill.company.phone}</div>` : ""}
+          </div>
+          <div class="invoice-title">INVOICE</div>
+        </div>
+
+        <div class="billing-section">
+          <div class="billing-info">
+            <h3>Billed To:</h3>
+            <div><strong>${getRetailerName(selectedBill.Retailer, selectedBill.retailer_name)}</strong></div>
+            ${typeof selectedBill.Retailer === "object" && selectedBill.Retailer?.address_line1 ? `<div>${selectedBill.Retailer.address_line1}</div>` : ""}
+            ${typeof selectedBill.Retailer === "object" && selectedBill.Retailer?.city ? `<div>City: ${selectedBill.Retailer.city}</div>` : ""}
+            ${typeof selectedBill.Retailer === "object" && selectedBill.Retailer?.state ? `<div>State: ${selectedBill.Retailer.state}</div>` : ""}
+            ${typeof selectedBill.Retailer === "object" && selectedBill.Retailer?.pincode ? `<div>Pincode: ${selectedBill.Retailer.pincode}</div>` : ""}
+            ${typeof selectedBill.Retailer === "object" && selectedBill.Retailer?.gstin ? `<div>GSTIN: ${selectedBill.Retailer.gstin}</div>` : ""}
+          </div>
+          <div class="invoice-details">
+            <h3>Invoice Details:</h3>
+            <div><strong>Invoice No:</strong> ${selectedBill.invoice_number || "N/A"}</div>
+            <div><strong>Date:</strong> ${selectedBill.invoice_date ? new Date(selectedBill.invoice_date).toLocaleDateString() : "Not specified"}</div>
+            <div><strong>Payment Mode:</strong> ${selectedBill.payment_mode || "N/A"}</div>
+            <div><strong>Payment Status:</strong> ${selectedBill.payment_status || "N/A"}</div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Product</th>
+              <th>HSN</th>
+              <th>Qty</th>
+              <th>Rate</th>
+              <th>Taxable</th>
+              <th>GST %</th>
+              <th>CGST</th>
+              <th>SGST</th>
+              <th>IGST</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${
+              selectedBill.items && selectedBill.items.length > 0
+                ? selectedBill.items
+                    .map((item: any, idx: number) => {
+                      const productId = item.Product || item.product || "N/A"
+                      const productName = `Product ID: ${productId}`
+                      const hsnCode = item.hsn_code || "N/A"
+                      const quantity = item.quantity || 0
+                      const calculations = calculateMockValues(item, idx)
+
+                      return `
+                  <tr>
+                    <td>${idx + 1}</td>
+                    <td>${productName}</td>
+                    <td>${hsnCode}</td>
+                    <td>${quantity}</td>
+                    <td>₹${formatNumber(calculations.price)}</td>
+                    <td>₹${formatNumber(calculations.taxableValue)}</td>
+                    <td>${calculations.gstRate}%</td>
+                    <td>₹${formatNumber(calculations.cgst)}</td>
+                    <td>₹${formatNumber(calculations.sgst)}</td>
+                    <td>₹${formatNumber(calculations.igst)}</td>
+                    <td>₹${formatNumber(calculations.total)}</td>
+                  </tr>
+                `
+                    })
+                    .join("")
+                : '<tr><td colspan="11" style="text-align: center;">No items found in this bill</td></tr>'
+            }
+          </tbody>
+        </table>
+
+        ${(() => {
+          let totalTaxable = 0,
+            totalCgst = 0,
+            totalSgst = 0,
+            totalIgst = 0,
+            grandTotal = 0
+
+          if (selectedBill.items) {
+            selectedBill.items.forEach((item: any, idx: number) => {
+              const calculations = calculateMockValues(item, idx)
+              totalTaxable += calculations.taxableValue
+              totalCgst += calculations.cgst
+              totalSgst += calculations.sgst
+              totalIgst += calculations.igst
+              grandTotal += calculations.total
+            })
+          }
+
+          const displayTotalTaxable =
+            Number.parseFloat(formatNumber(selectedBill.total_taxable_value)) > 0
+              ? formatNumber(selectedBill.total_taxable_value)
+              : formatNumber(totalTaxable)
+          const displayTotalCgst =
+            Number.parseFloat(formatNumber(selectedBill.total_cgst)) > 0
+              ? formatNumber(selectedBill.total_cgst)
+              : formatNumber(totalCgst)
+          const displayTotalSgst =
+            Number.parseFloat(formatNumber(selectedBill.total_sgst)) > 0
+              ? formatNumber(selectedBill.total_sgst)
+              : formatNumber(totalSgst)
+          const displayTotalIgst =
+            Number.parseFloat(formatNumber(selectedBill.total_igst)) > 0
+              ? formatNumber(selectedBill.total_igst)
+              : formatNumber(totalIgst)
+          const displayGrandTotal =
+            Number.parseFloat(formatNumber(selectedBill.grand_total)) > 0
+              ? formatNumber(selectedBill.grand_total)
+              : formatNumber(grandTotal)
+
+          return `
+            <div class="totals-section">
+              <div><span>Total Taxable Value:</span><span>₹${displayTotalTaxable}</span></div>
+              <div><span>Total CGST:</span><span>₹${displayTotalCgst}</span></div>
+              <div><span>Total SGST:</span><span>₹${displayTotalSgst}</span></div>
+              <div><span>Total IGST:</span><span>₹${displayTotalIgst}</span></div>
+              <div class="grand-total"><span>Grand Total:</span><span>₹${displayGrandTotal}</span></div>
+            </div>
+          `
+        })()}
+
+        <div class="footer-section">
+          <div>
+            <div><strong>Note:</strong></div>
+            <div>Thank you for your business!</div>
+          </div>
+          <div style="text-align: right;">
+            <div><strong>Authorized Signature</strong></div>
+            <div class="signature-line"></div>
+          </div>
+        </div>
+
+        <div class="no-print" style="margin-top: 30px; text-align: center;">
+          <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">Print Invoice</button>
+          <button onclick="window.close()" style="padding: 10px 20px; font-size: 16px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">Close</button>
+        </div>
+      </body>
+    </html>
+  `
+
+    // Write content to the new window
+    printWindow.document.write(printContent)
+    printWindow.document.close()
+
+    // Wait for content to load, then trigger print
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print()
+      }, 500)
+    }
+  }, [selectedBill])
+
+  // Handle download - generate PDF and download
+  const handleDownload = React.useCallback(async () => {
+    if (!selectedBill) return
+
+    setIsGeneratingPDF(true)
+    try {
+      const pdf = await generatePDF(false)
+      if (pdf) {
+        const fileName = `${selectedBill.invoice_number || "invoice"}.pdf`
+        pdf.save(fileName)
+      }
+    } catch (error) {
+      console.error("Download failed:", error)
+    } finally {
+      setIsGeneratingPDF(false)
+    }
+  }, [selectedBill])
 
   const openBill = (bill: Bill) => {
     console.log("Opening bill:", bill)
@@ -343,8 +725,9 @@ export default function VendorBills() {
     setTimeout(() => handlePrint(), 350)
   }
 
-  const handleDownloadAction = (bill: Bill) => {
-    openBill(bill)
+  const handleDownloadAction = async (bill: Bill) => {
+    setSelectedBill(bill)
+    setShowModal(true)
     setShouldDownload(true)
   }
 
@@ -364,59 +747,17 @@ export default function VendorBills() {
     }
   }
 
-  const handleDownload = React.useCallback(() => {
-    if (!selectedBill || !printRef.current) return
-
-    try {
-      const element = printRef.current.cloneNode(true) as HTMLDivElement
-      const html = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <title>${selectedBill.invoice_number || "Invoice"}</title>
-          <style>
-            body { 
-              background-color: #1E40AF; 
-              color: white; 
-              margin: 0; 
-              padding: 20px; 
-              font-family: Arial, sans-serif;
-            }
-            table, tr, td, th { 
-              border: 1px solid white; 
-              color: white; 
-              border-collapse: collapse;
-            }
-            th { background-color: #1E90FF; }
-            * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          </style>
-        </head>
-        <body>${element.outerHTML}</body>
-        </html>
-      `
-      const blob = new Blob([html], { type: "text/html" })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `${selectedBill.invoice_number || "invoice"}.html`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-    } catch (error) {
-      console.error("Download failed:", error)
-    }
-  }, [selectedBill, printRef])
-
   useEffect(() => {
-    if (shouldDownload && showModal && printRef.current) {
-      setTimeout(() => {
-        handleDownload()
+    if (shouldDownload && showModal && selectedBill) {
+      // Small delay to ensure modal is fully rendered
+      const timer = setTimeout(async () => {
+        await handleDownload()
         setShouldDownload(false)
-      }, 200)
+      }, 500)
+
+      return () => clearTimeout(timer)
     }
-  }, [shouldDownload, showModal])
+  }, [shouldDownload, showModal, selectedBill, handleDownload])
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -465,11 +806,21 @@ export default function VendorBills() {
                         <FallbackButton variant="outline" size="sm" onClick={() => openBill(bill)}>
                           View
                         </FallbackButton>
-                        <FallbackButton variant="outline" size="sm" onClick={() => handlePrintAction(bill)}>
-                          Print
+                        <FallbackButton
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePrintAction(bill)}
+                          disabled={isGeneratingPDF}
+                        >
+                          {isGeneratingPDF ? "..." : "Print"}
                         </FallbackButton>
-                        <FallbackButton variant="outline" size="sm" onClick={() => handleDownloadAction(bill)}>
-                          Download
+                        <FallbackButton
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadAction(bill)}
+                          disabled={isGeneratingPDF}
+                        >
+                          {isGeneratingPDF ? "..." : "Download"}
                         </FallbackButton>
                       </td>
                     </tr>
@@ -696,7 +1047,7 @@ export default function VendorBills() {
                       <span className="text-right">₹{displayGrandTotal}</span>
                     </div>
                     {grandTotal > 0 && (
-                      <div className="text-xs text-yellow-300 mt-2">
+                      <div className="text-xs text-yellow-300 mt-2">  
                       </div>
                     )}
                   </div>
@@ -716,11 +1067,28 @@ export default function VendorBills() {
               </div>
             </div>
             <div className="flex gap-2 mt-4">
-              <FallbackButton variant="default" onClick={handlePrint}>
-                Print
+              <FallbackButton variant="default" onClick={handlePrint} disabled={isGeneratingPDF}>
+                {isGeneratingPDF ? "Generating PDF..." : "Print PDF"}
               </FallbackButton>
-              <FallbackButton variant="default" onClick={handleDownload}>
-                Download
+              <FallbackButton
+                variant="default"
+                onClick={async () => {
+                  setIsGeneratingPDF(true)
+                  try {
+                    const pdf = await generatePDF(false)
+                    if (pdf && selectedBill) {
+                      const fileName = `${selectedBill.invoice_number || "invoice"}.pdf`
+                      pdf.save(fileName)
+                    }
+                  } catch (error) {
+                    console.error("Download failed:", error)
+                  } finally {
+                    setIsGeneratingPDF(false)
+                  }
+                }}
+                disabled={isGeneratingPDF}
+              >
+                {isGeneratingPDF ? "Generating PDF..." : "Download PDF"}
               </FallbackButton>
               <FallbackButton variant="outline" onClick={closeModal}>
                 Close
