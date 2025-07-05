@@ -203,10 +203,74 @@ export default function CreateBill() {
     setFormData({ ...formData, items: newItems });
   };
 
-  // Function to update product stock quantities after bill creation
-  const updateProductStocks = async (billItems: any[]) => {
+  // Function to update product stock quantities using bulk update API
+  const updateStockCount = async (billItems: any[]) => {
     const token = getAuthToken();
     if (!token) return;
+
+    // Prepare stock updates array
+    const stockUpdates = [];
+    
+    for (const item of billItems) {
+      if (!item.Product || !item.quantity) continue;
+      
+      // Find the product details
+      const product = products.find(p => String(p.product_id) === String(item.Product));
+      if (!product) continue;
+
+      // Calculate new available quantity
+      const currentQuantity = Number(product.available_quantity) || 0;
+      const billedQuantity = Number(item.quantity) || 0;
+      const newQuantity = Math.max(0, currentQuantity - billedQuantity); // Ensure non-negative
+
+      stockUpdates.push({
+        product_id: product.product_id,
+        current_quantity: currentQuantity,
+        billed_quantity: billedQuantity,
+        new_quantity: newQuantity
+      });
+    }
+
+    if (stockUpdates.length === 0) {
+      console.log("No stock updates needed");
+      return;
+    }
+
+    try {
+      // Call bulk update API
+      const updateRes = await fetchWithAuth(`${API_URL}/update-stockcount/`, {
+        method: "POST",
+        body: JSON.stringify({
+          updates: stockUpdates
+        }),
+      });
+
+      if (!updateRes.ok) {
+        console.error("Failed to update stock counts via bulk API");
+        // Fallback to individual updates if bulk API fails
+        await updateProductStocksIndividually(billItems);
+      } else {
+        const response = await updateRes.json();
+        console.log("Successfully updated stock counts:", response);
+        
+        // Log individual updates for debugging
+        stockUpdates.forEach(update => {
+          console.log(`Successfully updated stock for product ${update.product_id}: ${update.current_quantity} -> ${update.new_quantity}`);
+        });
+      }
+    } catch (error) {
+      console.error("Error updating stock counts:", error);
+      // Fallback to individual updates if bulk API fails
+      await updateProductStocksIndividually(billItems);
+    }
+  };
+
+  // Fallback function for individual product stock updates
+  const updateProductStocksIndividually = async (billItems: any[]) => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    console.log("Using fallback individual stock updates");
 
     // Process each item to reduce stock quantity
     for (const item of billItems) {
@@ -326,8 +390,8 @@ export default function CreateBill() {
       if (res.ok) {
         setNotification("Bill created successfully");
         
-        // Update product stock quantities
-        await updateProductStocks(items);
+        // Update product stock quantities using new bulk API
+        await updateStockCount(items);
         
         let token = getAuthToken();
         const companyId = localStorage.getItem("company_id");

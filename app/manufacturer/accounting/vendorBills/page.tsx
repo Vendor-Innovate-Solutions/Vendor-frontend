@@ -102,6 +102,7 @@ const FallbackButton: React.FC<FallbackButtonProps> = ({
 type BillItem = {
   name?: string
   Product_name?: string
+  Product?: string | number
   hsn_code?: string
   quantity?: number
   price?: number
@@ -158,6 +159,8 @@ export default function VendorBills() {
   const [bills, setBills] = useState<Bill[]>([])
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null)
   const [showModal, setShowModal] = useState(false)
+  const [products, setProducts] = useState<any[]>([])
+  const [isUpdatingStock, setIsUpdatingStock] = useState(false)
   const printRef = useRef<HTMLDivElement>(null)
   
   useEffect(() => {
@@ -176,6 +179,17 @@ export default function VendorBills() {
           setBills(Array.isArray(data) ? data : data.results || [])
         } else {
           console.error("Failed to fetch bills: HTTP error", res.status)
+        }
+
+        // Fetch products for stock update functionality
+        const productRes = await fetchWithAuth(
+          `${API_URL}/products/?company=${companyId}`
+        )
+        if (productRes.ok) {
+          const productData = await productRes.json()
+          setProducts(
+            Array.isArray(productData) ? productData : productData.results || []
+          )
         }
       } catch (error) {
         console.error("Failed to fetch bills:", error)
@@ -269,6 +283,88 @@ export default function VendorBills() {
       console.error("PDF download failed:", error);
     });
 }, [selectedBill]);
+
+  // Function to update stock count for a specific bill
+  const updateStockCountForBill = async (bill: Bill) => {
+    if (!bill.items || bill.items.length === 0) {
+      console.log("No items in bill to update stock for");
+      return;
+    }
+
+    setIsUpdatingStock(true);
+    const token = authStorage.getAccessToken();
+    if (!token) {
+      console.error("No authentication token found");
+      setIsUpdatingStock(false);
+      return;
+    }
+
+    // Prepare stock updates array
+    const stockUpdates = [];
+    
+    for (const item of bill.items) {
+      if (!item.Product_name || !item.quantity) continue;
+      
+      // Find the product by name (since bills might store product names differently)
+      const product = products.find(p => 
+        p.name === item.Product_name || 
+        p.name === item.name ||
+        String(p.product_id) === String(item.Product)
+      );
+      if (!product) {
+        console.warn(`Product not found for item: ${item.Product_name || item.name}`);
+        continue;
+      }
+
+      // Calculate new available quantity
+      const currentQuantity = Number(product.available_quantity) || 0;
+      const billedQuantity = Number(item.quantity) || 0;
+      const newQuantity = Math.max(0, currentQuantity - billedQuantity); // Ensure non-negative
+
+      stockUpdates.push({
+        product_id: product.product_id,
+        current_quantity: currentQuantity,
+        billed_quantity: billedQuantity,
+        new_quantity: newQuantity
+      });
+    }
+
+    if (stockUpdates.length === 0) {
+      console.log("No valid stock updates found for this bill");
+      setIsUpdatingStock(false);
+      return;
+    }
+
+    try {
+      // Call bulk update API
+      const updateRes = await fetchWithAuth(`${API_URL}/update-stockcount/`, {
+        method: "POST",
+        body: JSON.stringify({
+          updates: stockUpdates
+        }),
+      });
+
+      if (!updateRes.ok) {
+        console.error("Failed to update stock counts via bulk API");
+        alert("Failed to update stock counts. Please try again.");
+      } else {
+        const response = await updateRes.json();
+        console.log("Successfully updated stock counts:", response);
+        
+        // Log individual updates for debugging
+        stockUpdates.forEach(update => {
+          console.log(`Successfully updated stock for product ${update.product_id}: ${update.current_quantity} -> ${update.new_quantity}`);
+        });
+        
+        alert(`Successfully updated stock for ${stockUpdates.length} product(s) from bill ${bill.invoice_number}`);
+      }
+    } catch (error) {
+      console.error("Error updating stock counts:", error);
+      alert("Error updating stock counts. Please try again.");
+    }
+
+    setIsUpdatingStock(false);
+  };
 
   const openBill = (bill: Bill) => {
     setSelectedBill(bill)
@@ -373,6 +469,15 @@ export default function VendorBills() {
                         </FallbackButton>
                         <FallbackButton variant="outline" size="sm" onClick={() => handleDownloadAction(bill)} className="text-white">
                           Download
+                        </FallbackButton>
+                        <FallbackButton 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => updateStockCountForBill(bill)} 
+                          className="text-white"
+                          disabled={isUpdatingStock}
+                        >
+                          {isUpdatingStock ? "Updating..." : "Update Stock"}
                         </FallbackButton>
                       </td>
                     </tr>
