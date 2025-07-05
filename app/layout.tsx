@@ -1,32 +1,33 @@
-import { ThemeProvider } from "@/components/contexts/ThemeProvider"
-import type { Metadata } from "next"
-import "@/styles/global.css"
-
+import { ThemeProvider } from "@/components/contexts/ThemeProvider";
+import type { Metadata } from "next";
+import "@/styles/global.css";
 
 export const metadata: Metadata = {
-  title: "Smartchain ERP Software",
-  
-  description:
-    "Starting something new!",
+  title: "Vendor",
+  description: "Starting something new!",
 };
 
 export default function RootLayout({
-    children,
-  }: {
-    children: React.ReactNode
-  }) {
-    return (
-      <html lang="en" suppressHydrationWarning>
-        <body>
-
-          <ThemeProvider attribute="class"
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/logo.png" type="image/png" />
+        
+      </head>
+      <body>
+        <ThemeProvider
+          attribute="class"
           defaultTheme="system"
           enableSystem
-          disableTransitionOnChange>
-          
+          disableTransitionOnChange
+        >
           <main>{children}</main>
-          </ThemeProvider>
-        </body>
-      </html>
-    )
-  }
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}
