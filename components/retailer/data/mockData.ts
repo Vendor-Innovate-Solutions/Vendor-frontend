@@ -1,3 +1,5 @@
+import { authStorage } from '../../../utils/localStorage';
+
 interface Product {
   id: number;
   name: string;
@@ -20,7 +22,13 @@ export let ORDERS: Order[] = [];
 
 export const fetchStockFromAPI = async () => {
   try {
-    const token = localStorage.getItem("access_token");
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined') {
+      console.log("Server-side rendering detected, skipping API call");
+      return;
+    }
+    
+    const token = authStorage.getAccessToken();
     if (!token) throw new Error("Authentication token not found. Please log in again.");
 
     const response = await fetch("http://127.0.0.1:8000/api/stock/", {
@@ -53,7 +61,13 @@ export const fetchStockFromAPI = async () => {
 
 export const fetchOrdersFromAPI = async () => {
   try {
-    const token = localStorage.getItem("access_token");
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined') {
+      console.log("Server-side rendering detected, skipping API call");
+      return;
+    }
+    
+    const token = authStorage.getAccessToken();
     if (!token) throw new Error("Authentication token not found. Please log in again.");
 
     const response = await fetch("http://127.0.0.1:8000/api/orders/", {
@@ -86,7 +100,9 @@ export const fetchOrdersFromAPI = async () => {
   }
 };
 
-// First fetch stock, then fetch orders
-fetchStockFromAPI().then(() => {
-  fetchOrdersFromAPI();
-});
+// First fetch stock, then fetch orders (only in browser environment)
+if (typeof window !== 'undefined') {
+  fetchStockFromAPI().then(() => {
+    fetchOrdersFromAPI();
+  });
+}

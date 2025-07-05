@@ -1,12 +1,14 @@
 
+import { authStorage } from './localStorage';
+
 const API_URL = "https://vendor-backendproduction.up.railway.app/api";
 
 const getAuthToken = (): string | null => {
-  return localStorage.getItem("access_token");
+  return authStorage.getAccessToken();
 };
 
 const getRefreshToken = (): string | null => {
-  return localStorage.getItem("refresh_token");
+  return authStorage.getRefreshToken();
 };
 
 const refreshAccessToken = async (): Promise<string | null> => {
@@ -22,14 +24,13 @@ const refreshAccessToken = async (): Promise<string | null> => {
 
     if (!response.ok) {
       console.error("Failed to refresh token");
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
+      authStorage.clearAll();
       return null;
     }
 
     const data = await response.json();
     if (data.access) {
-      localStorage.setItem("access_token", data.access);
+      authStorage.setAccessToken(data.access);
       return data.access;
     }
   } catch (error) {

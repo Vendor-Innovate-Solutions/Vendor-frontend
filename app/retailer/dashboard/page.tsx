@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ShoppingCart, User } from 'lucide-react';
 import { PRODUCTS, ORDERS, fetchStockFromAPI, fetchOrdersFromAPI } from '../../../components/retailer/data/mockData';
 import { API_URL } from '../../../utils/auth_fn';
+import { authStorage } from '../../../utils/localStorage';
 const DashboardTab = () => {
   const [search, setSearch] = useState('');
   const [totalOrders, setTotalOrders] = useState(0);
@@ -15,7 +16,7 @@ const DashboardTab = () => {
 
       // Fetch total orders from count API
       try {
-        const token = localStorage.getItem('access_token');
+        const token = authStorage.getAccessToken();
         if (!token) throw new Error('Authentication token not found. Please log in again.');
 
         const response = await fetch(`${API_URL}/count/`, {
