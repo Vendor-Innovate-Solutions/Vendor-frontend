@@ -3,7 +3,24 @@
 Welcome to the **ERP UI Repository** for our intelligent supply chain management platform. This system streamlines stock tracking, order management, and delivery operations — tailored for Manufacturer, Employees, and Retailers with a smart, role-based interface.
 
 ---
-# Features
+
+## 🔗 Table of Contents
+
+- [🔐 Authentication & Access Control](#-authentication--access-control)
+- [🌐 Dashboards](#-dashboards)
+- [📦 Stock Management Module](#-stock-management-module)
+- [💰 Accounting & Billing](#-accounting--billing)
+- [👤 User Profile & Configuration](#-user-profile--configuration)
+- [🧠 IoT & AI Integration](#-iot--ai-integration)
+- [🛠️ Backend Overview](#️-backend-overview-deployed-and-handled-privately-in-separate-repository)
+- [📦 IoT Edge-AI Package (IMX500)](#-iot-edge-ai-package-imx500)
+- [💻 Tech Stack](#-tech-stack)
+- [🚀 Frontend Setup Guide](#-frontend-setup-guide)
+  - [🧩 Overview](#-overview)
+  - [📦 Setup Instructions](#-setup-instructions)
+- [🎬 Vendor Frontend Setup Demo Video](#-vendor-frontend-setup-demo-video)
+---
+
 ## 🔐 Authentication & Access Control
 
 - **Login Page**: Secure login system with Django access token authentication.
@@ -11,7 +28,7 @@ Welcome to the **ERP UI Repository** for our intelligent supply chain management
 
 ---
 
-## 🌐 Role-Based Dashboards
+## 🌐 Dashboards
 
 ### 🧭 Manufacturer Dashboard
 - Real-time **stock levels**, **sales**, and **order tracking**.
@@ -72,13 +89,48 @@ An edge AI package powers vision-based automation:
 
 ---
 
+## 🚀 Frontend Setup Guide
+
+### 🧩 Overview
+
+This comprehensive guide is designed to help you get started with the frontend of the Ignyte project. It provides step-by-step instructions for installation, configuration, and running the development server, ensuring a smooth setup process for developers at all experience levels.
+
+### 📦 Setup Instructions
+
+- 🌐 Navigate to the frontend folder
+  ```bash
+  git clone https://github.com/Vendor-Innovate-Solutions/Vendor-frontend
+  cd Vendor-frontend
+- 📥 **Install dependencies**
+  ```bash
+  npm i
+- 🔄 **Start the development server**
+  ```bash
+  npm run dev
+- 🖥️ **Visit in browser Open**
+  ```bash
+  http://localhost:3000
+>**Note**: The backend allows only port 3000 by default 
+- 📋 **Prerequisites**
+  ```bash
+  Node.js (v16+ recommended)
+  npm (comes bundled with Node.js)
+
+## 🎬 Vendor Frontend Setup Demo Video
+
+[![Vendor Frontend Setup](https://img.youtube.com/vi/4CgKMEibgIw/hqdefault.jpg)](https://youtu.be/4CgKMEibgIw)
+
+🎥 [Click here to watch on YouTube](https://youtu.be/4CgKMEibgIw)
+
 ## 🛠️ Backend Overview (Deployed and Handled Privately in Separate Repository) 
->**Note**: Just for information 
+
+>**Note**: Just for information and understanding
+
 ## 📺 Demo Preview
 
 ![Demo](public/IOT-Demo.gif)
 
-Watch the full backend demo here 👉 [Watch on YouTube](https://www.youtube.com/watch?v=Dpkl4f1OeJ0)
+Watch the full backend demo here 👉 [Watch on YouTube](https://www.youtube.com/watch?v=Dpkl4f1OeJ0)  
 > Built using Django and Django REST Framework — logic and automation powered from the backend.
 
 ### 🔄 Automatic Order Allocation
@@ -120,29 +172,4 @@ Watch the full backend demo here 👉 [Watch on YouTube](https://www.youtube.com
 
 ---
 
-# 🚀 Frontend Setup Guide
-**For Developers to help with Easy Installation, Configuration, and Seamless Operations**
 
-## 🧩 Overview
-This comprehensive guide is designed to help you get started with the frontend of the Ignyte project. It provides step-by-step instructions for installation, configuration, and running the development server, ensuring a smooth setup process for developers at all experience levels.
-
-## 📦 Setup Instructions
-
-- 🌐 Navigate to the frontend folder
-  ```bash
-  git clone https://github.com/Vendor-Innovate-Solutions/Vendor-frontend
-  cd Vendor-frontend
-- 📥 **Install dependencies**
-  ```bash
-  npm i
-- 🔄 **Start the development server**
-  ```bash
-  npm run dev
-- 🖥️ **Visit in browser Open**
-  ```bash
-  http://localhost:3000
->**Note**: The backend allows only port 3000 by default 
-- 📋 **Prerequisites**
-  ```bash
-  Node.js (v16+ recommended)
-  npm (comes bundled with Node.js)
