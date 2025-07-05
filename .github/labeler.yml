@@ -1,0 +1,39 @@
+# Labeler configuration for a Next.js frontend repository
+
+frontend:
+  - 'components/**'
+  - 'pages/**'
+  - 'styles/**'
+  - 'app/**'
+  - '*.js'
+  - '*.jsx'
+  - '*.ts'
+  - '*.tsx'
+
+styling:
+  - 'styles/**'
+  - '**/*.css'
+  - '**/*.scss'
+  - '**/*.sass'
+
+routing:
+  - 'pages/**'
+  - 'app/**'
+
+configuration:
+  - 'next.config.js'
+  - 'tsconfig.json'
+  - '.env*'
+  - '.eslintrc*'
+  - 'package.json'
+  - 'postcss.config.js'
+  - 'tailwind.config.js'
+
+testing:
+  - '__tests__/**'
+  - '**/*.test.*'
+  - 'jest.config.js'
+
+docs:
+  - 'README.md'
+  - 'docs/**'

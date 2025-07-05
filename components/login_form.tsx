@@ -16,6 +16,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Chrome } from "lucide-react";
 import Link from "next/link";
+
 export function LoginForm({
   className,
   ...props
@@ -54,20 +55,21 @@ export function LoginForm({
         console.log("✅ Login Successful!");
         localStorage.setItem("access_token", data.access);
         localStorage.setItem("refresh_token", data.refresh);
-        // Fetch user's company
-      const companyRes = await fetch(`${API_URL}/company/`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${data.access}`,
-        },
-      });
-      if (companyRes.ok) {
-        const companies = await companyRes.json();
-        // If only one company, store its id
-        if (Array.isArray(companies) && companies.length > 0) {
-          localStorage.setItem("company_id", companies[0].id);
+
+        const companyRes = await fetch(`${API_URL}/company/`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${data.access}`,
+          },
+        });
+
+        if (companyRes.ok) {
+          const companies = await companyRes.json();
+          if (Array.isArray(companies) && companies.length > 0) {
+            localStorage.setItem("company_id", companies[0].id);
+          }
         }
-      }
+
         if (role === "manufacturer") {
           router.replace("/manufacturer");
         } else if (role === "employee") {
@@ -90,9 +92,6 @@ export function LoginForm({
       <Card className="bg-black text-white border border-white-300 w-full md:w-96">
         <CardHeader className="pb-2">
           <CardTitle className="text-2xl font-bold">Login</CardTitle>
-          <CardDescription className="text-gray-400 border-b border-gray-600 pb-2">
-            Enter your username below to login to your account
-          </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
           <form onSubmit={handleSubmit}>
@@ -109,30 +108,25 @@ export function LoginForm({
                   onChange={(e) => setUsername(e.target.value)}
                 />
               </div>
+
               <div className="grid gap-2">
-                <div className="flex items-center">
-                  <Label htmlFor="password">Password</Label>
-                  <a
-                    href="#"
-                    className="ml-auto inline-block text-sm text-blue-400 underline-offset-4 hover:underline"
-                  >
-                    Forgot your password?
-                  </a>
-                </div>
+                <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
                   type="password"
+                  placeholder="Enter your password"
                   required
                   className="bg-gray-900 text-white border-gray-700"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
+
               <div className="grid gap-2">
                 <Label htmlFor="role">Select Role</Label>
                 <select
                   id="role"
-                  className="bg-gray-900 text-white border border-gray-700"
+                  className="bg-gray-900 text-white border border-gray-700 w-full h-9 px-3 rounded-md"
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                 >
@@ -141,19 +135,20 @@ export function LoginForm({
                   <option value="retailer">Retailer</option>
                 </select>
               </div>
+
+              <a
+                href="/authentication/forgot-password"
+                className="inline-block text-sm text-blue-400 underline-offset-4 hover:underline"
+              >
+                Forgot your password?
+              </a>
+
               {error && <p className="text-red-500 text-sm">{error}</p>}
               <Button
                 type="submit"
                 className="w-full bg-blue-600 hover:bg-blue-700"
               >
                 Login
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full text-gray-300 border-gray-600 hover:bg-gray-800 hover:text-white"
-              >
-                Login with Google
-                <Chrome className="ml-2 h-4 w-4" />
               </Button>
             </div>
             <div className="mt-4 text-center text-sm">

@@ -131,6 +131,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             Create a new account by filling in the details below
           </CardDescription>
         </CardHeader>
+        
         <CardContent className="pt-4">
           <form onSubmit={handleSubmit}>
             <div className="flex flex-col gap-6">

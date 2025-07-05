@@ -1,0 +1,105 @@
+name: AI Code Reviewer & Issue Labeler
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  issues:
+    types: [opened]
+
+permissions: write-all
+
+jobs:
+  review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: AI Code Reviewer
+        uses: Vendor-Innovate-Solutions/Vendor-repo-ai@master
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_API_MODEL: "gpt-4"
+
+  labeler:
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Extract Issue Info
+        id: extract
+        run: |
+          echo "ISSUE_NUMBER=${{ github.event.issue.number }}" >> $GITHUB_ENV
+        
+      - name: Get Label from GPT
+        id: gpt
+        run: |
+          # Use GitHub context directly in jq to avoid environment variable issues
+          echo "Making API request to OpenAI..."
+          
+          # Create the JSON payload
+          JSON_PAYLOAD=$(jq -n \
+            --arg title '${{ github.event.issue.title }}' \
+            --arg body '${{ github.event.issue.body }}' \
+            '{
+              model: "gpt-4o",
+              messages: [
+                {
+                  role: "system",
+                  content: "You are a GitHub assistant. Classify this GitHub issue using only one of these labels: bug, feature, enhancement, question. Just return the single label."
+                },
+                {
+                  role: "user", 
+                  content: ("Issue title: " + $title + "\n\nIssue body: " + $body)
+                }
+              ],
+              max_tokens: 10,
+              temperature: 0
+            }')
+          
+          echo "JSON Payload created successfully"
+          
+          # Make the API call and capture the response
+          API_RESPONSE=$(echo "$JSON_PAYLOAD" | curl -s https://api.openai.com/v1/chat/completions \
+            -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d @-)
+          
+          echo "API Response: $API_RESPONSE"
+          
+          # Extract the label from the response
+          LABEL=$(echo "$API_RESPONSE" | jq -r '.choices[0].message.content // "error"' | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+          
+          # Check if there was an error in the API response
+          ERROR_MESSAGE=$(echo "$API_RESPONSE" | jq -r '.error.message // empty')
+          if [ ! -z "$ERROR_MESSAGE" ]; then
+            echo "OpenAI API Error: $ERROR_MESSAGE"
+            LABEL="error"
+          fi
+          
+          # If label is still null or empty, set a fallback
+          if [ "$LABEL" = "null" ] || [ -z "$LABEL" ]; then
+            echo "No valid label received, using fallback"
+            LABEL="question"
+          fi
+          
+          echo "LABEL=$LABEL" >> $GITHUB_ENV
+          echo "Predicted label: $LABEL"
+
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+           
+      - name: Apply label to issue
+        run: |
+          echo "Labeling issue #${ISSUE_NUMBER} as '${LABEL}'"
+          gh issue edit "$ISSUE_NUMBER" --add-label "$LABEL"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ env.ISSUE_NUMBER }}
+          LABEL: ${{ env.LABEL }}

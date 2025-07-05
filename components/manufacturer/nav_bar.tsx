@@ -76,11 +76,25 @@ export function Navbar() {
           {/* Logo and desktop nav */}
           <div className="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start">
             <Link href="/manufacturer" className="flex shrink-0 items-center">
-              <img
-                className="h-10 w-auto"
-                src="logo.png"
-                alt="Your Company"
-              />
+              {/* SVG Logo */}
+              <svg
+                className="h-10 w-10"
+                viewBox="0 0 100 100"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <rect width="100" height="100" rx="20" fill="#3B82F6"/>
+                <path
+                  d="M25 30h50v40H25V30zm10 10v20h30V40H35z"
+                  fill="white"
+                />
+                <circle cx="30" cy="45" r="3" fill="#3B82F6"/>
+                <circle cx="70" cy="45" r="3" fill="#3B82F6"/>
+                <path
+                  d="M40 50h20v5H40v-5z"
+                  fill="#3B82F6"
+                />
+              </svg>
               <span className="ml-2 text-lg font-bold text-blue-400">Manufacturer</span>
             </Link>
             <div className="hidden sm:ml-6 sm:block">
