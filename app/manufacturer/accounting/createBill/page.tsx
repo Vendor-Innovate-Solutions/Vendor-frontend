@@ -203,6 +203,43 @@ export default function CreateBill() {
     setFormData({ ...formData, items: newItems });
   };
 
+  // Function to update product stock quantities after bill creation
+  const updateProductStocks = async (billItems: any[]) => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    // Process each item to reduce stock quantity
+    for (const item of billItems) {
+      if (!item.Product || !item.quantity) continue;
+      
+      // Find the product details
+      const product = products.find(p => String(p.product_id) === String(item.Product));
+      if (!product) continue;
+
+      // Calculate new available quantity
+      const currentQuantity = Number(product.available_quantity) || 0;
+      const billedQuantity = Number(item.quantity) || 0;
+      const newQuantity = Math.max(0, currentQuantity - billedQuantity); // Ensure non-negative
+
+      try {
+        // Update product stock via API
+        const updateRes = await fetchWithAuth(`${API_URL}/products/${product.product_id}/`, {
+          method: "PUT",
+          body: JSON.stringify({
+            ...product,
+            available_quantity: newQuantity,
+          }),
+        });
+
+        if (!updateRes.ok) {
+          console.error(`Failed to update stock for product ${product.product_id}`);
+        }
+      } catch (error) {
+        console.error(`Error updating stock for product ${product.product_id}:`, error);
+      }
+    }
+  };
+
   // Submit handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -286,6 +323,10 @@ export default function CreateBill() {
       });
       if (res.ok) {
         setNotification("Bill created successfully");
+        
+        // Update product stock quantities
+        await updateProductStocks(items);
+        
         let token = getAuthToken();
         const companyId = localStorage.getItem("company_id");
         if (token && companyId) {
