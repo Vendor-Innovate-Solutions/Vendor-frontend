@@ -233,6 +233,8 @@ export default function CreateBill() {
 
         if (!updateRes.ok) {
           console.error(`Failed to update stock for product ${product.product_id}`);
+        } else {
+          console.log(`Successfully updated stock for product ${product.product_id}: ${currentQuantity} -> ${newQuantity}`);
         }
       } catch (error) {
         console.error(`Error updating stock for product ${product.product_id}:`, error);
