@@ -90,8 +90,44 @@ export function LoginForm({
 
         // Redirect based on user role
         if (result.user_type === "RETAILER") {
-          router.replace("/retailer");
+          // Check if retailer has profile
+          try {
+            const profileRes = await fetch(`${API_URL}/retailer/profile/`, {
+              headers: {
+                Authorization: `Bearer ${result.access}`,
+              },
+            });
+            
+            if (profileRes.status === 404) {
+              // No profile, redirect to profile setup
+              router.replace("/retailer/setup");
+            } else {
+              router.replace("/retailer");
+            }
+          } catch {
+            router.replace("/retailer/setup");
+          }
         } else if (result.user_type === "COMPANY_USER") {
+          // Check if company exists
+          try {
+            const companyRes = await fetch(`${API_URL}/company/`, {
+              headers: {
+                Authorization: `Bearer ${result.access}`,
+              },
+            });
+            
+            if (companyRes.ok) {
+              const companies = await companyRes.json();
+              if (companies.length === 0) {
+                // No company, redirect to company creation
+                router.replace("/manufacturer/company?first=true");
+                return;
+              }
+            }
+          } catch (err) {
+            console.error("Error checking company:", err);
+          }
+
           // Check role for internal users
           if (result.role === "ADMIN" || result.role === "ACCOUNTANT") {
             router.replace("/manufacturer");

@@ -97,26 +97,27 @@ const SignUpPage = () => {
 
       if (response.ok) {
         if (data.user_type === "RETAILER") {
-          setMessage(
-            "Registration submitted successfully! You'll be notified after approval."
-          );
-          // Don't store tokens yet since approval is pending
-          setTimeout(() => {
-            router.replace("/authentication");
-          }, 3000);
+          // Store tokens for retailer
+          if (result.access) {
+            localStorage.setItem("access_token", result.access);
+            localStorage.setItem("refresh_token", result.refresh);
+            // Redirect to profile setup
+            router.replace("/retailer/setup");
+          } else {
+            setMessage(
+              "Registration submitted successfully! You'll be notified after approval."
+            );
+            setTimeout(() => {
+              router.replace("/authentication");
+            }, 3000);
+          }
         } else {
           // COMPANY_USER
           localStorage.setItem("access_token", result.access);
           localStorage.setItem("refresh_token", result.refresh);
 
-          // Redirect based on role
-          if (result.role === "ADMIN" || result.role === "ACCOUNTANT") {
-            router.replace("/manufacturer");
-          } else if (result.role === "EMPLOYEE") {
-            router.replace("/employee");
-          } else {
-            router.replace("/manufacturer");
-          }
+          // First-time manufacturer - redirect to company creation
+          router.replace("/manufacturer/company?first=true");
         }
       } else {
         setError(

@@ -5,6 +5,11 @@ import { useStockData } from '@/components/manufacturer/stockcount/data';
 import SidePanel from '@/components/manufacturer/stockcount/SidePanel';
 import NavigationBar from '@/components/manufacturer/stockcount/NavigationBar';
 import StockOverview from '@/components/manufacturer/stockcount/StockOverview';
+import GodownManagement from '@/components/manufacturer/stockcount/GodownManagement';
+import StockBalance from '@/components/manufacturer/stockcount/StockBalance';
+import StockMovements from '@/components/manufacturer/stockcount/StockMovements';
+import StockTransfer from '@/components/manufacturer/stockcount/StockTransfer';
+import StockItems from '@/components/manufacturer/stockcount/StockItems';
 
 const UQC_CHOICES = [
   { value: "BAG", label: "Bags" },
@@ -242,27 +247,60 @@ export default function StockCountPage() {
 if (loading) return <p className="text-blue-300">Loading stock data...</p>;
 if (error) return <p className="text-red-400">{error}</p>;
 
+const renderView = () => {
+  switch (activeView) {
+    case 'table':
+    case 'charts':
+      return (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <StockOverview activeView={activeView} stockData={stockData} />
+          </div>
+          <div className="space-y-6">
+            <SidePanel stockData={stockData} />
+          </div>
+        </div>
+      );
+    case 'godowns':
+      return <GodownManagement />;
+    case 'balance':
+      return <StockBalance />;
+    case 'movements':
+      return <StockMovements />;
+    case 'transfers':
+      return <StockTransfer />;
+    case 'items':
+      return <StockItems />;
+    default:
+      return (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <StockOverview activeView={activeView} stockData={stockData} />
+          </div>
+          <div className="space-y-6">
+            <SidePanel stockData={stockData} />
+          </div>
+        </div>
+      );
+  }
+};
+
 return (
   <>
     <div className="relative p-6 bg-black text-blue-300 min-h-screen">
       <h1 className="text-xl font-semibold mb-6 text-blue-400 flex items-center justify-between">
         Stock Dashboard
-        <button
-          className="ml-4 px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800"
-          onClick={() => setShowModal(true)}
-        >
-          + Add Product
-        </button>
+        {(activeView === 'table' || activeView === 'charts') && (
+          <button
+            className="ml-4 px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800"
+            onClick={() => setShowModal(true)}
+          >
+            + Add Product
+          </button>
+        )}
       </h1>
       <NavigationBar activeView={activeView} setActiveView={setActiveView} />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <StockOverview activeView={activeView} stockData={stockData} />
-        </div>
-        <div className="space-y-6">
-          <SidePanel stockData={stockData} />
-        </div>
-      </div>
+      {renderView()}
 
       {/* Add Product Modal */}
       {showModal && (

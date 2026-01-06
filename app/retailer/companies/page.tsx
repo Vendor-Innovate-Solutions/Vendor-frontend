@@ -1,352 +1,359 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { RetailerNavbar } from '../../../components/retailer/nav_bar';
-import { authStorage } from '../../../utils/localStorage';
-import { fetchWithAuth, API_URL } from '../../../utils/auth_fn';
-import { Building2, Plus, Users, CheckCircle, Clock, X } from 'lucide-react';
 
-interface Company {
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { API_URL } from "@/utils/auth_fn";
+import { Building, CheckCircle, Clock, XCircle } from "lucide-react";
+
+type Company = {
   id: number;
   name: string;
-  email: string;
   description?: string;
-  status: 'connected' | 'pending' | 'rejected';
-  connection_type?: 'invite' | 'code' | 'request';
-}
+  city?: string;
+  state?: string;
+  created_at?: string;
+};
 
-const CompaniesPage = () => {
+type Connection = {
+  id: number;
+  company: number;
+  company_name: string;
+  status: "pending" | "approved" | "rejected" | "suspended";
+  connected_at?: string;
+  credit_limit?: string;
+};
+
+export default function RetailerCompaniesPage() {
   const router = useRouter();
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [showJoinModal, setShowJoinModal] = useState(false);
-  const [joinMethod, setJoinMethod] = useState<'code' | 'request'>('code');
-  const [companyCode, setCompanyCode] = useState('');
-  const [requestCompanyId, setRequestCompanyId] = useState('');
-  const [requestMessage, setRequestMessage] = useState('');
+  const [publicCompanies, setPublicCompanies] = useState<Company[]>([]);
+  const [connectedCompanies, setConnectedCompanies] = useState<Connection[]>([]);
+  const [inviteCode, setInviteCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [availableCompanies, setAvailableCompanies] = useState<Company[]>([]);
-  const [profileChecked, setProfileChecked] = useState(false);
-
-  // Check if retailer profile exists
-  useEffect(() => {
-    const checkProfile = async () => {
-      try {
-        const response = await fetchWithAuth(`${API_URL}/retailer/profile/`);
-        if (!response.ok) {
-          router.replace('/retailer/setup');
-          return;
-        }
-        setProfileChecked(true);
-      } catch (error) {
-        router.replace('/retailer/setup');
-      }
-    };
-
-    checkProfile();
-  }, [router]);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [activeTab, setActiveTab] = useState("discover");
 
   useEffect(() => {
-    if (!profileChecked) return;
+    fetchPublicCompanies();
     fetchConnectedCompanies();
-    fetchAvailableCompanies();
-  }, [profileChecked]);
+  }, []);
 
-  const fetchConnectedCompanies = async () => {
+  const fetchPublicCompanies = async () => {
     try {
-      const response = await fetchWithAuth(`${API_URL}/retailer/companies/`);
+      const response = await fetch(`${API_URL}/companies/public/`);
       if (response.ok) {
         const data = await response.json();
-        setCompanies(Array.isArray(data) ? data : data.results || []);
+        setPublicCompanies(data);
       }
-    } catch (error) {
-      console.error('Failed to fetch connected companies:', error);
+    } catch (err) {
+      console.error("Error fetching companies:", err);
     }
   };
 
-  const fetchAvailableCompanies = async () => {
+  const fetchConnectedCompanies = async () => {
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+
     try {
-      const response = await fetchWithAuth(`${API_URL}/companies/public/`);
+      const response = await fetch(`${API_URL}/retailer/companies/`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (response.ok) {
         const data = await response.json();
-        setAvailableCompanies(Array.isArray(data) ? data : data.results || []);
+        setConnectedCompanies(data);
       }
-    } catch (error) {
-      console.error('Failed to fetch available companies:', error);
+    } catch (err) {
+      console.error("Error fetching connected companies:", err);
     }
   };
 
   const handleJoinByCode = async () => {
-    if (!companyCode.trim()) {
-      alert('Please enter an invite code');
+    if (!inviteCode.trim()) {
+      setError("Please enter an invite code");
       return;
     }
-    
+
     setLoading(true);
-    try {
-      const response = await fetchWithAuth(`${API_URL}/retailer/join-by-code/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invite_code: companyCode }),
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setShowJoinModal(false);
-        setCompanyCode('');
-        fetchConnectedCompanies();
-        alert(data.message || 'Successfully joined company!');
-      } else {
-        const errorData = await response.json();
-        alert(errorData.error || 'Invalid invite code');
-      }
-    } catch (error) {
-      console.error('Failed to join by code:', error);
-      alert('Failed to join company');
+    setError("");
+    setSuccess("");
+
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      router.replace("/authentication");
+      return;
     }
-    setLoading(false);
+
+    try {
+      const response = await fetch(`${API_URL}/retailer/join-by-code/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ invite_code: inviteCode }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess(data.message || "Successfully joined company!");
+        setInviteCode("");
+        fetchConnectedCompanies();
+        setActiveTab("connected");
+      } else {
+        setError(data.error || "Failed to join company");
+      }
+    } catch (err) {
+      console.error("Error joining company:", err);
+      setError("Server error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleRequestApproval = async () => {
-    if (!requestCompanyId || !requestMessage.trim()) {
-      alert('Please select a company and provide a message');
+  const handleRequestApproval = async (companyId: number) => {
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      router.replace("/authentication");
       return;
     }
-    
-    setLoading(true);
+
     try {
-      const response = await fetchWithAuth(`${API_URL}/retailer/request-approval/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          company_id: parseInt(requestCompanyId),
-          message: requestMessage 
+      const response = await fetch(`${API_URL}/retailer/request-approval/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          company_id: companyId,
+          message: "I would like to connect with your company to order products.",
         }),
       });
-      
+
+      const data = await response.json();
+
       if (response.ok) {
-        const data = await response.json();
-        setShowJoinModal(false);
-        setRequestCompanyId('');
-        setRequestMessage('');
+        setSuccess(data.message || "Request sent successfully!");
         fetchConnectedCompanies();
-        alert(data.message || 'Request sent successfully!');
       } else {
-        const errorData = await response.json();
-        alert(errorData.error || 'Failed to send request');
+        setError(data.error || "Failed to send request");
       }
-    } catch (error) {
-      console.error('Failed to request approval:', error);
-      alert('Failed to send request');
+    } catch (err) {
+      console.error("Error requesting approval:", err);
+      setError("Server error. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'connected':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case 'pending':
-        return <Clock className="h-5 w-5 text-yellow-500" />;
-      case 'rejected':
-        return <X className="h-5 w-5 text-red-500" />;
+      case "approved":
+        return <CheckCircle className="text-green-500" size={20} />;
+      case "pending":
+        return <Clock className="text-yellow-500" size={20} />;
+      case "rejected":
+        return <XCircle className="text-red-500" size={20} />;
       default:
         return null;
     }
   };
 
-  const getStatusText = (status: string) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case 'connected':
-        return 'Connected';
-      case 'pending':
-        return 'Pending Approval';
-      case 'rejected':
-        return 'Rejected';
+      case "approved":
+        return "text-green-500 bg-green-900/20 border-green-500";
+      case "pending":
+        return "text-yellow-500 bg-yellow-900/20 border-yellow-500";
+      case "rejected":
+        return "text-red-500 bg-red-900/20 border-red-500";
       default:
-        return 'Unknown';
+        return "text-gray-500 bg-gray-900/20 border-gray-500";
     }
   };
 
-  if (!profileChecked) {
-    return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-        <div className="text-white">Checking profile...</div>
-      </div>
-    );
-  }
+  const handlePlaceOrder = (companyId: number) => {
+    router.push(`/retailer/orders/new?company=${companyId}`);
+  };
 
   return (
-    <div className="min-h-screen bg-neutral-950">
-      <RetailerNavbar />
-      
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Company Connections</h1>
-            <p className="text-neutral-400 mt-2">Manage your connections with manufacturer companies</p>
-          </div>
-          <button
-            onClick={() => setShowJoinModal(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="h-5 w-5" />
-            Join Company
-          </button>
+    <div className="min-h-screen bg-black p-6">
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-white">Company Connections</h1>
+          <p className="text-gray-400">Connect with suppliers to place orders</p>
         </div>
 
-        {/* Connected Companies */}
-        <div className="bg-neutral-900 rounded-lg shadow border border-neutral-800 p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Building2 className="h-6 w-6 text-neutral-400" />
-            <h2 className="text-xl font-semibold text-white">Your Companies</h2>
-          </div>
-          
-          {companies.length === 0 ? (
-            <p className="text-gray-500">No companies connected yet. Join a company to start ordering products.</p>
-          ) : (
-            <div className="grid gap-4">
-              {companies.map((company) => (
-                <div key={company.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg">{company.name}</h3>
-                      <p className="text-gray-600">{company.email}</p>
-                      {company.description && (
-                        <p className="text-gray-500 mt-1">{company.description}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(company.status)}
-                      <span className={`text-sm font-medium ${
-                        company.status === 'connected' ? 'text-green-600' :
-                        company.status === 'pending' ? 'text-yellow-600' :
-                        'text-red-600'
-                      }`}>
-                        {getStatusText(company.status)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Join Company Modal */}
-        {showJoinModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-neutral-900 border border-neutral-800 rounded-lg max-w-md w-full p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-white">Join a Company</h3>
-                <button
-                  onClick={() => setShowJoinModal(false)}
-                  className="text-neutral-400 hover:text-neutral-300"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-
-              {/* Join Method Selection */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-neutral-300 mb-2">
-                  How do you want to join?
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setJoinMethod('code')}
-                    className={`p-2 text-sm rounded-lg border ${
-                      joinMethod === 'code'
-                        ? 'bg-blue-50 border-blue-200 text-blue-700'
-                        : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    Company Code
-                  </button>
-                  <button
-                    onClick={() => setJoinMethod('request')}
-                    className={`p-2 text-sm rounded-lg border ${
-                      joinMethod === 'request'
-                        ? 'bg-blue-50 border-blue-200 text-blue-700'
-                        : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    Request Access
-                  </button>
-                </div>
-              </div>
-
-              {/* Join by Company Code */}
-              {joinMethod === 'code' && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Company Code
-                    </label>
-                    <input
-                      type="text"
-                      value={companyCode}
-                      onChange={(e) => setCompanyCode(e.target.value.toUpperCase())}
-                      placeholder="ABC123"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  <button
-                    onClick={handleJoinByCode}
-                    disabled={loading || !companyCode}
-                    className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? 'Joining...' : 'Join via Code'}
-                  </button>
-                </div>
-              )}
-
-              {/* Request Approval */}
-              {joinMethod === 'request' && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Select Company
-                    </label>
-                    <select
-                      value={requestCompanyId}
-                      onChange={(e) => setRequestCompanyId(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Choose a company...</option>
-                      {availableCompanies.map((company) => (
-                        <option key={company.id} value={company.id}>
-                          {company.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Message (Optional)
-                    </label>
-                    <textarea
-                      value={requestMessage}
-                      onChange={(e) => setRequestMessage(e.target.value)}
-                      placeholder="Tell them why you want to join..."
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  <button
-                    onClick={handleRequestApproval}
-                    disabled={loading || !requestCompanyId}
-                    className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? 'Sending...' : 'Send Request'}
-                  </button>
-                </div>
-              )}
-            </div>
+        {error && (
+          <div className="mb-4 bg-red-900/20 border border-red-500 rounded p-3">
+            <p className="text-red-500 text-sm">{error}</p>
           </div>
         )}
+
+        {success && (
+          <div className="mb-4 bg-green-900/20 border border-green-500 rounded p-3">
+            <p className="text-green-500 text-sm">{success}</p>
+          </div>
+        )}
+
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="discover">Discover Companies</TabsTrigger>
+            <TabsTrigger value="connected">My Connections</TabsTrigger>
+            <TabsTrigger value="invite">Join by Code</TabsTrigger>
+          </TabsList>
+
+          {/* Discover Companies Tab */}
+          <TabsContent value="discover">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {publicCompanies.map((company) => (
+                <Card
+                  key={company.id}
+                  className="bg-gray-900 text-white border border-gray-700"
+                >
+                  <CardHeader>
+                    <div className="flex items-start gap-3">
+                      <Building className="text-blue-500" size={24} />
+                      <div className="flex-1">
+                        <CardTitle className="text-lg">{company.name}</CardTitle>
+                        <CardDescription className="text-gray-400 text-sm">
+                          {company.city && company.state
+                            ? `${company.city}, ${company.state}`
+                            : "Location not specified"}
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {company.description && (
+                      <p className="text-gray-400 text-sm mb-4">
+                        {company.description}
+                      </p>
+                    )}
+                    <Button
+                      onClick={() => handleRequestApproval(company.id)}
+                      disabled={loading}
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                    >
+                      Request to Connect
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+
+              {publicCompanies.length === 0 && (
+                <div className="col-span-full text-center py-12">
+                  <Building className="mx-auto text-gray-600 mb-4" size={48} />
+                  <p className="text-gray-400">No companies available</p>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Connected Companies Tab */}
+          <TabsContent value="connected">
+            <div className="space-y-4">
+              {connectedCompanies.map((connection) => (
+                <Card
+                  key={connection.id}
+                  className="bg-gray-900 text-white border border-gray-700"
+                >
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <Building className="text-blue-500" size={32} />
+                        <div>
+                          <h3 className="text-lg font-semibold">
+                            {connection.company_name}
+                          </h3>
+                          <div className="flex items-center gap-2 mt-1">
+                            {getStatusIcon(connection.status)}
+                            <span
+                              className={`text-xs px-2 py-1 rounded border ${getStatusColor(
+                                connection.status
+                              )}`}
+                            >
+                              {connection.status.toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {connection.status === "approved" && (
+                        <Button
+                          onClick={() => handlePlaceOrder(connection.company)}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          Place Order
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+
+              {connectedCompanies.length === 0 && (
+                <div className="text-center py-12">
+                  <Building className="mx-auto text-gray-600 mb-4" size={48} />
+                  <p className="text-gray-400 mb-4">No connections yet</p>
+                  <Button
+                    onClick={() => setActiveTab("discover")}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    Discover Companies
+                  </Button>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Join by Code Tab */}
+          <TabsContent value="invite">
+            <Card className="bg-gray-900 text-white border border-gray-700 max-w-md mx-auto">
+              <CardHeader>
+                <CardTitle>Join by Invite Code</CardTitle>
+                <CardDescription className="text-gray-400">
+                  Enter the invitation code provided by a company
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="inviteCode">Invite Code</Label>
+                    <Input
+                      id="inviteCode"
+                      value={inviteCode}
+                      onChange={(e) => setInviteCode(e.target.value)}
+                      placeholder="ABC123XYZ789"
+                      className="bg-gray-800 border-gray-700 text-white uppercase"
+                    />
+                  </div>
+
+                  <Button
+                    onClick={handleJoinByCode}
+                    disabled={loading || !inviteCode.trim()}
+                    className="w-full bg-blue-600 hover:bg-blue-700"
+                  >
+                    {loading ? "Joining..." : "Join Company"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
-};
-
-export default CompaniesPage;
+}
