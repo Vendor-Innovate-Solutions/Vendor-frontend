@@ -1,7 +1,7 @@
 
 import { authStorage } from './localStorage';
 
-const API_URL = "https://vendor-backend-production-2053.up.railway.app/api";
+const API_URL = "http://127.0.0.1:8000/api";
 
 /**
  * Authentication and Password Reset Utilities
