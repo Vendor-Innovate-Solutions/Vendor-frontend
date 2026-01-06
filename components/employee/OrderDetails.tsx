@@ -48,7 +48,8 @@ export const OrderDetails = () => {
   };
 
   const fetchOrdersWithToken = async (token: string) => {
-    return fetch("http://127.0.0.1:8000/api/employee_orders/", {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://vendor-backend-production-bd99.up.railway.app";
+    return fetch(`${API_URL}/api/employee_orders/`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -62,7 +63,8 @@ export const OrderDetails = () => {
     if (!refreshToken) return null;
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/token/refresh/", {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://vendor-backend-production-bd99.up.railway.app";
+      const response = await fetch(`${API_URL}/api/token/refresh/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

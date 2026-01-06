@@ -27,7 +27,8 @@ const ConfigurationPage = () => {
       const token = localStorage.getItem("access_token");
       if (!token) throw new Error("Authentication token not found. Please log in again.");
 
-      const response = await fetch("http://127.0.0.1:8000/api/odoo/save-credentials/", {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://vendor-backend-production-bd99.up.railway.app";
+      const response = await fetch(`${API_URL}/api/odoo/save-credentials/`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
