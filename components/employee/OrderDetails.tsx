@@ -49,7 +49,7 @@ export const OrderDetails = () => {
 
   const fetchOrdersWithToken = async (token: string) => {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://vendor-backend-production-bd99.up.railway.app";
-    return fetch(`${API_URL}/api/employee_orders/`, {
+    return fetch(`${API_URL}/employee_orders/`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

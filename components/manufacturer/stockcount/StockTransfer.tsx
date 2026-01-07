@@ -38,7 +38,7 @@ export default function StockTransfer() {
       if (!token) return;
 
       const companyId = localStorage.getItem('company_id');
-      const response = await fetch(`${API_URL}/products/?company=${companyId}`, {
+      const response = await fetch(`${API_URL}/catalog/products/?company=${companyId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
