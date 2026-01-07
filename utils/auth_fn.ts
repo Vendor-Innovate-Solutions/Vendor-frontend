@@ -51,7 +51,13 @@ const refreshAccessToken = async (): Promise<string | null> => {
 
 const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Response> => {
   let token = getAuthToken();
-  if (!token) throw new Error("Authentication token not found. Please log in again.");
+  if (!token) {
+    // Redirect to login if no token
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
+    throw new Error("Authentication token not found. Please log in again.");
+  }
 
   // Get company_id from localStorage
   const companyId = typeof window !== 'undefined' ? localStorage.getItem('company_id') : null;
@@ -68,7 +74,13 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Re
 
   if (response.status === 401) {
     token = await refreshAccessToken();
-    if (!token) throw new Error("Authentication token not found. Please log in again.");
+    if (!token) {
+      // Redirect to login if refresh fails
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+      throw new Error("Session expired. Please log in again.");
+    }
 
     return fetch(url, {
       ...options,
