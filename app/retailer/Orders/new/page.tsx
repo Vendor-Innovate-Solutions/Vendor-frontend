@@ -54,7 +54,7 @@ function NewOrderPageContent() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/retailer/products/`, {
+      const response = await fetch(`${API_URL}/api/portal/items/`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -136,7 +136,7 @@ function NewOrderPageContent() {
 
     try {
       // First, create the sales order
-      const orderResponse = await fetch(`${API_URL}/orders/sales/`, {
+      const orderResponse = await fetch(`${API_URL}/api/orders/sales/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -159,7 +159,7 @@ function NewOrderPageContent() {
 
       // Add items to the order
       for (const item of orderItems) {
-        await fetch(`${API_URL}/orders/sales/${orderId}/add_item/`, {
+        await fetch(`${API_URL}/api/orders/sales/${orderId}/add_item/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

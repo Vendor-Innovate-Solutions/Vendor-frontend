@@ -47,7 +47,7 @@ export default function StockBalance() {
       let token = await getAuthToken();
       if (!token) return;
 
-      const response = await fetch(`${API_URL}/inventory/godowns/`, {
+      const response = await fetch(`${API_URL}/api/inventory/godowns/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -66,7 +66,7 @@ export default function StockBalance() {
       if (!token) return;
 
       const companyId = localStorage.getItem('company_id');
-      const response = await fetch(`${API_URL}/catalog/products/?company=${companyId}`, {
+      const response = await fetch(`${API_URL}/api/catalog/products/?company=${companyId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -93,7 +93,7 @@ export default function StockBalance() {
       if (filters.product_id) params.append('product_id', filters.product_id);
 
       const response = await fetch(
-        `${API_URL}/inventory/balances/?${params.toString()}`,
+        `${API_URL}/api/inventory/balances/?${params.toString()}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -103,7 +103,7 @@ export default function StockBalance() {
         token = await refreshAccessToken();
         if (token) {
           const retryResponse = await fetch(
-            `${API_URL}/inventory/balances/?${params.toString()}`,
+            `${API_URL}/api/inventory/balances/?${params.toString()}`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
           if (retryResponse.ok) {
@@ -130,7 +130,7 @@ export default function StockBalance() {
       if (!token) return;
 
       const response = await fetch(
-        `${API_URL}/inventory/balance/?product_id=${productId}`,
+        `${API_URL}/api/inventory/balance/?product_id=${productId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

@@ -39,7 +39,7 @@ function GenerateInvoicePageContent() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/orders/sales/${orderId}/`, {
+      const response = await fetch(`${API_URL}/api/orders/sales/${orderId}/`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -67,7 +67,7 @@ function GenerateInvoicePageContent() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/invoices/from_sales_order/${orderId}/`, {
+      const response = await fetch(`${API_URL}/api/invoices/from_sales_order/${orderId}/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

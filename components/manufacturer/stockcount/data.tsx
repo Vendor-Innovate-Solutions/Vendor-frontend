@@ -79,7 +79,7 @@ export const useCategoryData = () => {
   useEffect(() => {
     const fetchCategoryData = async () => {
       try {
-        const response = await fetchWithAuth(`${API_URL}/api/inventory/category-stock/`);
+        const response = await fetchWithAuth(`${API_URL}/api/catalog/categories/`);
         if (!response.ok) throw new Error("Failed to fetch category data");
 
         const result = await response.json();

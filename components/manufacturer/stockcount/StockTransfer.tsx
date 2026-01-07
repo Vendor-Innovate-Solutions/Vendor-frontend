@@ -38,7 +38,7 @@ export default function StockTransfer() {
       if (!token) return;
 
       const companyId = localStorage.getItem('company_id');
-      const response = await fetch(`${API_URL}/catalog/products/?company=${companyId}`, {
+      const response = await fetch(`${API_URL}/api/catalog/products/?company=${companyId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -56,7 +56,7 @@ export default function StockTransfer() {
       let token = await getAuthToken();
       if (!token) return;
 
-      const response = await fetch(`${API_URL}/inventory/godowns/`, {
+      const response = await fetch(`${API_URL}/api/inventory/godowns/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -95,7 +95,7 @@ export default function StockTransfer() {
         return;
       }
 
-      const response = await fetch(`${API_URL}/inventory/transfers/`, {
+      const response = await fetch(`${API_URL}/api/inventory/transfers/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -114,7 +114,7 @@ export default function StockTransfer() {
       if (response.status === 401) {
         token = await refreshAccessToken();
         if (token) {
-          const retryResponse = await fetch(`${API_URL}/inventory/transfers/`, {
+          const retryResponse = await fetch(`${API_URL}/api/inventory/transfers/`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

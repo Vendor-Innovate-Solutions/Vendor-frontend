@@ -45,7 +45,7 @@ export default function RetailerCompaniesPage() {
 
   const fetchPublicCompanies = async () => {
     try {
-      const response = await fetch(`${API_URL}/companies/public/`);
+      const response = await fetch(`${API_URL}/api/portal/companies/discover/`);
       if (response.ok) {
         const data = await response.json();
         setPublicCompanies(data);
@@ -60,7 +60,7 @@ export default function RetailerCompaniesPage() {
     if (!token) return;
 
     try {
-      const response = await fetch(`${API_URL}/retailer/companies/`, {
+      const response = await fetch(`${API_URL}/api/portal/retailers/`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -91,7 +91,7 @@ export default function RetailerCompaniesPage() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/retailer/join-by-code/`, {
+      const response = await fetch(`${API_URL}/api/portal/register/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -130,7 +130,7 @@ export default function RetailerCompaniesPage() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/retailer/request-approval/`, {
+      const response = await fetch(`${API_URL}/api/portal/register/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

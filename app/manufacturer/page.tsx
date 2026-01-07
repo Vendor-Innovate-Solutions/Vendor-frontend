@@ -221,7 +221,7 @@ const [approveLoadingId, setApproveLoadingId] = useState<number | null>(null);
   setSelectedOrderId(orderId);
   setShowEmployeeModal(true);
   try {
-    const response = await fetchWithAuth(`${API_URL}/get_available_employees_for_order/?order_id=${orderId}`);
+    const response = await fetchWithAuth(`${API_URL}/api/workflow/employees/?order_id=${orderId}`);
     if (!response.ok) throw new Error("Failed to fetch employees");
     const data = await response.json();
     setEmployeeList(data.employees || []);
@@ -236,7 +236,7 @@ const [approveLoadingId, setApproveLoadingId] = useState<number | null>(null);
 const allocateOrderToEmployee = async (orderId: number, employeeId: number) => {
   setAllocateLoadingId(employeeId);
   try {
-    const response = await fetchWithAuth(`${API_URL}/allocate-order/`, {
+    const response = await fetchWithAuth(`${API_URL}/api/workflow/allocate/`, {
       method: "POST",
       body: JSON.stringify({ order_id: orderId, employee_id: employeeId }),
     });

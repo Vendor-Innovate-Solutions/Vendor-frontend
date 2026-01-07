@@ -61,7 +61,7 @@ export default function CreateBill() {
 
       // Fetch company details for preview
       const companyRes = await fetchWithAuth(
-        `${API_URL}/company/${companyId}/`
+        `${API_URL}/api/company/${companyId}/`
       );
       if (companyRes.ok) {
         const companyObj = await companyRes.json();
@@ -70,7 +70,7 @@ export default function CreateBill() {
 
       // Retailers for this company
       const retailerRes = await fetchWithAuth(
-        `${API_URL}/retailers/?company=${companyId}`
+        `${API_URL}/api/party/retailers/?company=${companyId}`
       );
       if (retailerRes.ok) {
         const retailerData = await retailerRes.json();
@@ -83,7 +83,7 @@ export default function CreateBill() {
 
       // Products for this company
       const productRes = await fetchWithAuth(
-        `${API_URL}/products/?company=${companyId}`
+        `${API_URL}/api/catalog/products/?company=${companyId}`
       );
       if (productRes.ok) {
         const productData = await productRes.json();
@@ -94,7 +94,7 @@ export default function CreateBill() {
 
       // Invoice count
       const invoiceRes = await fetchWithAuth(
-        `${API_URL}/invoices/count/?company=${companyId}`
+        `${API_URL}/api/invoices/?company=${companyId}`
       );
       let count = 0;
       if (invoiceRes.ok) {
@@ -291,7 +291,7 @@ export default function CreateBill() {
         if (token && companyId) {
           // Fetch new count and update invoice number
           const invoiceData = await fetch(
-            `${API_URL}/invoices/?company=${companyId}`,
+            `${API_URL}/api/invoices/?company=${companyId}`,
             {
               headers: { Authorization: `Bearer ${token}` },
             }

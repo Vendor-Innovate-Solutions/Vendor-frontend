@@ -58,7 +58,7 @@ export default function StockItems() {
       if (!token) return;
 
       const companyId = localStorage.getItem('company_id');
-      const response = await fetch(`${API_URL}/catalog/products/?company=${companyId}`, {
+      const response = await fetch(`${API_URL}/api/catalog/products/?company=${companyId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -76,7 +76,7 @@ export default function StockItems() {
       let token = await getAuthToken();
       if (!token) return;
 
-      const response = await fetch(`${API_URL}/inventory/godowns/`, {
+      const response = await fetch(`${API_URL}/api/inventory/godowns/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -104,7 +104,7 @@ export default function StockItems() {
       if (filters.status) params.append('status', filters.status);
 
       const response = await fetch(
-        `${API_URL}/inventory/items/?${params.toString()}`,
+        `${API_URL}/api/inventory/items/?${params.toString()}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -114,7 +114,7 @@ export default function StockItems() {
         token = await refreshAccessToken();
         if (token) {
           const retryResponse = await fetch(
-            `${API_URL}/inventory/items/?${params.toString()}`,
+            `${API_URL}/api/inventory/items/?${params.toString()}`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
           if (retryResponse.ok) {
@@ -148,8 +148,8 @@ export default function StockItems() {
       }
 
       const url = editingItem
-        ? `${API_URL}/inventory/items/${editingItem.id}/`
-        : `${API_URL}/inventory/items/`;
+        ? `${API_URL}/api/inventory/items/${editingItem.id}/`
+        : `${API_URL}/api/inventory/items/`;
 
       const method = editingItem ? 'PUT' : 'POST';
 
@@ -207,7 +207,7 @@ export default function StockItems() {
         return;
       }
 
-      const response = await fetch(`${API_URL}/inventory/items/${id}/`, {
+      const response = await fetch(`${API_URL}/api/inventory/items/${id}/`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -217,7 +217,7 @@ export default function StockItems() {
       if (response.status === 401) {
         token = await refreshAccessToken();
         if (token) {
-          const retryResponse = await fetch(`${API_URL}/inventory/items/${id}/`, {
+          const retryResponse = await fetch(`${API_URL}/api/inventory/items/${id}/`, {
             method: 'DELETE',
             headers: {
               Authorization: `Bearer ${token}`,

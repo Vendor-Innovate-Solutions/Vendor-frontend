@@ -88,8 +88,8 @@ export default function GodownManagement() {
       }
 
       const url = editingGodown
-        ? `${API_URL}/inventory/godowns/${editingGodown.id}/`
-        : `${API_URL}/inventory/godowns/`;
+        ? `${API_URL}/api/inventory/godowns/${editingGodown.id}/`
+        : `${API_URL}/api/inventory/godowns/`;
 
       const method = editingGodown ? 'PUT' : 'POST';
 

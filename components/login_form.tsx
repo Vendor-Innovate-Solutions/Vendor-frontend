@@ -48,7 +48,7 @@ export function LoginForm({
     const fetchCompanies = async () => {
       setLoadingCompanies(true);
       try {
-        const response = await fetch(`${API_URL}/portal/companies/discover/`);
+        const response = await fetch(`${API_URL}/api/portal/companies/discover/`);
         if (response.ok) {
           const data = await response.json();
           setCompanies(data);
@@ -92,7 +92,7 @@ export function LoginForm({
         if (result.user_type === "RETAILER") {
           // Check if retailer has profile
           try {
-            const profileRes = await fetch(`${API_URL}/retailer/profile/`, {
+            const profileRes = await fetch(`${API_URL}/api/portal/retailers/profile/`, {
               headers: {
                 Authorization: `Bearer ${result.access}`,
               },
@@ -110,7 +110,7 @@ export function LoginForm({
         } else if (result.user_type === "COMPANY_USER") {
           // Check if company exists
           try {
-            const companyRes = await fetch(`${API_URL}/company/`, {
+            const companyRes = await fetch(`${API_URL}/api/company/`, {
               headers: {
                 Authorization: `Bearer ${result.access}`,
               },

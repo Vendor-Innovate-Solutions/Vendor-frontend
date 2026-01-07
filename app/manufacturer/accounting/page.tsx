@@ -18,10 +18,6 @@ export default function AccountingDashboard() {
     const companyId = localStorage.getItem('company_id');
     if (!companyId) return;
 
-    // Fetch total invoices count
-    const countRes = await fetchWithAuth(`${API_URL}/api/invoices/count/?company=${companyId}`);
-    const countData = await countRes.json();
-
     // Fetch all invoices for the company
     const invoicesRes = await fetchWithAuth(`${API_URL}/api/invoices/?company=${companyId}`);
     const invoicesData = await invoicesRes.json();

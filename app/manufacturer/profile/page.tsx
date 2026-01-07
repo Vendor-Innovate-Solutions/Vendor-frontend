@@ -17,7 +17,7 @@ const ProfileTab = () => {
         const token = localStorage.getItem('access_token');
         if (!token) throw new Error('Authentication token not found. Please log in again.');
 
-        const response = await fetch(`${API_URL}/user_detail/`, {
+        const response = await fetch(`${API_URL}/api/auth/user/`, {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',

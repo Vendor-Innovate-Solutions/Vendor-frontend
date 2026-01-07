@@ -125,7 +125,7 @@ const ConnectionsPage = () => {
   const fetchRequests = async () => {
     setRequestsLoading(true);
     try {
-      const response = await fetchWithAuth(`${API_URL}/company/retailer-requests/`);
+      const response = await fetchWithAuth(`${API_URL}/api/portal/retailers/?status=PENDING`);
       if (response.ok) {
         const data = await response.json();
         setRequests(Array.isArray(data) ? data : data.results || []);
@@ -140,7 +140,7 @@ const ConnectionsPage = () => {
   const fetchConnections = async () => {
     setConnectionsLoading(true);
     try {
-      const response = await fetchWithAuth(`${API_URL}/company/connections/`);
+      const response = await fetchWithAuth(`${API_URL}/api/portal/retailers/?status=APPROVED`);
       if (response.ok) {
         const data = await response.json();
         setConnections(Array.isArray(data) ? data : data.results || []);
@@ -155,7 +155,7 @@ const ConnectionsPage = () => {
   const fetchInvitations = async () => {
     setInvitationsLoading(true);
     try {
-      const response = await fetchWithAuth(`${API_URL}/company/invites/`);
+      const response = await fetchWithAuth(`${API_URL}/api/portal/retailers/`);
       if (response.ok) {
         const data = await response.json();
         setInvitations(Array.isArray(data) ? data : data.results || []);
@@ -173,7 +173,7 @@ const ConnectionsPage = () => {
     setSuccess('');
     
     try {
-      const response = await fetchWithAuth(`${API_URL}/company/generate-invite-code/`, {
+      const response = await fetchWithAuth(`${API_URL}/api/portal/retailers/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -219,7 +219,7 @@ const ConnectionsPage = () => {
     }
     
     try {
-      const response = await fetchWithAuth(`${API_URL}/company/accept-request/`, {
+      const response = await fetchWithAuth(`${API_URL}/api/portal/retailers/${selectedRequest?.id}/approve/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -247,7 +247,7 @@ const ConnectionsPage = () => {
 
   const updateConnectionStatus = async (connectionId: number, status: 'approved' | 'suspended') => {
     try {
-      const response = await fetchWithAuth(`${API_URL}/company/update-connection/`, {
+      const response = await fetchWithAuth(`${API_URL}/api/portal/retailers/${connectionId}/${status === 'approved' ? 'approve' : 'reject'}/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

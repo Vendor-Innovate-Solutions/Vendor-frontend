@@ -47,7 +47,7 @@ export default function RetailerProfileSetup() {
       }
 
       try {
-        const response = await fetch(`${API_URL}/retailer/profile/`, {
+        const response = await fetch(`${API_URL}/api/portal/retailers/profile/`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -85,7 +85,7 @@ export default function RetailerProfileSetup() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/retailer/profile/`, {
+      const response = await fetch(`${API_URL}/api/portal/retailers/profile/`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

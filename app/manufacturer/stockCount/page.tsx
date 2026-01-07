@@ -111,7 +111,7 @@ export default function StockCountPage() {
       setCategories(Array.isArray(data) ? data : (data.results || []));
     })
     .catch(() => setCategories([]));
-  fetch(`${API_URL}/company/`, {
+  fetch(`${API_URL}/api/company/`, {
     headers: { Authorization: `Bearer ${token}` }
   })
     .then(res => res.json())

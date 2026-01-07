@@ -20,7 +20,7 @@ const DashboardTab = () => {
   useEffect(() => {
     const checkProfile = async () => {
       try {
-        const response = await fetchWithAuth(`${API_URL}/retailer/profile/`);
+        const response = await fetchWithAuth(`${API_URL}/api/portal/retailers/profile/`);
         if (!response.ok) {
           // Profile doesn't exist, redirect to setup
           router.replace('/retailer/setup');
@@ -46,7 +46,7 @@ const DashboardTab = () => {
 
         // Fetch total orders from retailer count API
         try {
-          const response = await fetchWithAuth(`${API_URL}/retailer/count/`);
+          const response = await fetchWithAuth(`${API_URL}/api/portal/orders/`);
           if (response.ok) {
             const data = await response.json();
             setTotalOrders(data.total_orders || 0);
@@ -57,7 +57,7 @@ const DashboardTab = () => {
 
         // Fetch connected companies count
         try {
-          const response = await fetchWithAuth(`${API_URL}/retailer/companies/count/`);
+          const response = await fetchWithAuth(`${API_URL}/api/portal/retailers/`);
           if (response.ok) {
             const data = await response.json();
             setConnectedCompanies(data.count || 0);

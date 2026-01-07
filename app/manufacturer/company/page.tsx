@@ -61,7 +61,7 @@ function CompanyPageContent() {
       setLoading(true);
       setError("");
       try {
-        const res = await fetchWithAuth(`${API_URL}/company/`);
+        const res = await fetchWithAuth(`${API_URL}/api/company/`);
         if (res.ok) {
           const data = await res.json();
           setCompanies(data);
@@ -116,7 +116,7 @@ function CompanyPageContent() {
     setError("");
     setMessage("");
     try {
-      const res = await fetchWithAuth(`${API_URL}/company/`, {
+      const res = await fetchWithAuth(`${API_URL}/api/company/`, {
         method: "POST",
         body: JSON.stringify(formCompany),
       });
@@ -152,7 +152,7 @@ function CompanyPageContent() {
     setMessage("");
     if (!formCompany.id) return;
     try {
-      const res = await fetchWithAuth(`${API_URL}/company/${formCompany.id}/`, {
+      const res = await fetchWithAuth(`${API_URL}/api/company/${formCompany.id}/`, {
         method: "PUT",
         body: JSON.stringify(formCompany),
       });

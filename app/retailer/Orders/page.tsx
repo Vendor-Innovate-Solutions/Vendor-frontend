@@ -54,7 +54,7 @@ const OrdersPage = () => {
   useEffect(() => {
     const checkProfile = async () => {
       try {
-        const response = await fetchWithAuth(`${API_URL}/retailer/profile/`);
+        const response = await fetchWithAuth(`${API_URL}/api/portal/retailers/profile/`);
         if (!response.ok) {
           router.replace('/retailer/setup');
           return;
@@ -79,7 +79,7 @@ const OrdersPage = () => {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const response = await fetchWithAuth(`${API_URL}/retailer/orders/`);
+      const response = await fetchWithAuth(`${API_URL}/api/portal/orders/`);
       if (response.ok) {
         const data = await response.json();
         setOrders(Array.isArray(data) ? data : data.results || []);
@@ -92,7 +92,7 @@ const OrdersPage = () => {
 
   const fetchConnectedCompanies = async () => {
     try {
-      const response = await fetchWithAuth(`${API_URL}/retailer/companies/`);
+      const response = await fetchWithAuth(`${API_URL}/api/portal/retailers/`);
       if (response.ok) {
         const data = await response.json();
         const connectedCompanies = (Array.isArray(data) ? data : data.results || [])
@@ -106,7 +106,7 @@ const OrdersPage = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetchWithAuth(`${API_URL}/retailer/products/`);
+      const response = await fetchWithAuth(`${API_URL}/api/portal/items/`);
       if (response.ok) {
         const data = await response.json();
         setProducts(Array.isArray(data) ? data : data.results || []);
@@ -124,7 +124,7 @@ const OrdersPage = () => {
 
     setCreating(true);
     try {
-      const response = await fetchWithAuth(`${API_URL}/retailer/orders/`, {
+      const response = await fetchWithAuth(`${API_URL}/api/portal/orders/create/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

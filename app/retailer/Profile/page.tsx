@@ -35,7 +35,7 @@ const ProfilePage = () => {
   useEffect(() => {
     const checkProfile = async () => {
       try {
-        const response = await fetchWithAuth(`${API_URL}/retailer/profile/`);
+        const response = await fetchWithAuth(`${API_URL}/api/portal/retailers/profile/`);
         if (!response.ok) {
           router.replace('/retailer/setup');
           return;
@@ -57,7 +57,7 @@ const ProfilePage = () => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const response = await fetchWithAuth(`${API_URL}/retailer/profile/`);
+      const response = await fetchWithAuth(`${API_URL}/api/portal/retailers/profile/`);
       if (response.ok) {
         const data = await response.json();
         setProfile(data);
@@ -78,7 +78,7 @@ const ProfilePage = () => {
     try {
       setSaving(true);
       setError(null);
-      const response = await fetchWithAuth(`${API_URL}/retailer/profile/`, {
+      const response = await fetchWithAuth(`${API_URL}/api/portal/retailers/profile/`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

@@ -42,7 +42,7 @@ const ProductsPage = () => {
   useEffect(() => {
     const checkProfile = async () => {
       try {
-        const response = await fetchWithAuth(`${API_URL}/retailer/profile/`);
+        const response = await fetchWithAuth(`${API_URL}/api/portal/retailers/profile/`);
         if (!response.ok) {
           router.replace('/retailer/setup');
           return;
@@ -64,7 +64,7 @@ const ProductsPage = () => {
 
   const fetchConnectedCompanies = async () => {
     try {
-      const response = await fetchWithAuth(`${API_URL}/retailer/companies/`);
+      const response = await fetchWithAuth(`${API_URL}/api/portal/retailers/`);
       if (response.ok) {
         const data = await response.json();
         const connectedCompanies = (Array.isArray(data) ? data : data.results || [])
@@ -80,7 +80,7 @@ const ProductsPage = () => {
     setLoading(true);
     try {
       // Fetch products from all connected companies
-      const response = await fetchWithAuth(`${API_URL}/retailer/products/`);
+      const response = await fetchWithAuth(`${API_URL}/api/portal/items/`);
       if (response.ok) {
         const data = await response.json();
         setProducts(Array.isArray(data) ? data : data.results || []);
