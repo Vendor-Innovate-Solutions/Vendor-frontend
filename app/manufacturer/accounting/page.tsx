@@ -39,7 +39,7 @@ export default function AccountingDashboard() {
     );
 
     setStats({
-      totalInvoices: countData.count || invoices.length,
+      totalInvoices: invoices.length,
       pendingPayments,
       totalRevenue,
     });
