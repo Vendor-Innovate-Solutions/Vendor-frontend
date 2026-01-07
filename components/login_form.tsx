@@ -162,16 +162,16 @@ export function LoginForm({
             <div className="flex flex-col gap-6">
               {/* Email Input */}
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="username">Email</Label>
                 <Input
-                  id="email"
+                  id="username"
                   type="email"
                   placeholder="your.email@example.com"
                   className="bg-gray-900 text-white border border-gray-700"
-                  {...register("email")}
+                  {...register("username")}
                 />
-                {errors.email && (
-                  <p className="text-red-500 text-sm">{errors.email.message}</p>
+                {errors.username && (
+                  <p className="text-red-500 text-sm">{errors.username.message}</p>
                 )}
               </div>
 

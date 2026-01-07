@@ -2,10 +2,10 @@ import { z } from "zod";
 
 /**
  * Login Schema
- * Required fields: email, password, company_id
+ * Required fields: username (email), password, company_id
  */
 export const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  username: z.string().email("Please enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   company_id: z.string().uuid("Please select a valid company"),
 });
