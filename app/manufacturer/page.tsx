@@ -435,7 +435,7 @@ useEffect(() => {
         setShipmentsLoading(false);
         return;
     }
-      const response = await fetchWithAuth(`${API_URL}/shipments/?company=${companyId}`);
+      const response = await fetchWithAuth(`${API_URL}/orders/sales/?company=${companyId}`);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -469,24 +469,23 @@ useEffect(() => {
         return;
     }
 
-    // Pass company_id as query param
-    const response = await fetchWithAuth(`${API_URL}/count?company=${companyId}`);
-
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.detail || `Server responded with status ${response.status}`
-        );
+    // TODO: /count endpoint not yet implemented in backend
+    // Using orders/sales and portal endpoints to calculate stats
+    try {
+      const ordersResponse = await fetchWithAuth(`${API_URL}/orders/sales/?company=${companyId}`);
+      if (ordersResponse.ok) {
+        const ordersData = await ordersResponse.json();
+        const orders = Array.isArray(ordersData) ? ordersData : ordersData.results || [];
+        setOverviewData((prevData) => ({
+          totalOrders: orders.length,
+          numStores: 0, // TODO: Add portal/retailers endpoint call
+          deliveryAgents: 0, // TODO: Add employees endpoint call
+          pendingOrders: orders.filter((o: any) => o.status === 'DRAFT' || o.status === 'PENDING').length,
+        }));
       }
-
-      const countsData: CountsResponse = await response.json();
-      setOverviewData((prevData) => ({
-        totalOrders: countsData.orders_placed,
-        numStores: countsData.retailers_available,
-        deliveryAgents: countsData.employees_available,
-        pendingOrders: countsData.pending_orders,
-      }));
+    } catch (e) {
+      console.error('Error fetching dashboard stats:', e);
+    }
 
       setError(null);
     } catch (err) {
