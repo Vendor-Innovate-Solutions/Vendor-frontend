@@ -1,7 +1,7 @@
 
 import { authStorage } from './localStorage';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://vendor-backend-production-bd99.up.railway.app/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || \"https://vendor-backend-production-bd99.up.railway.app\";
 
 /**
  * Authentication and Password Reset Utilities

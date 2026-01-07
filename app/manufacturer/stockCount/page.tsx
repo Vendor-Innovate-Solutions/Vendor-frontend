@@ -102,7 +102,7 @@ export default function StockCountPage() {
   useEffect(() => {
   const token = localStorage.getItem("access_token");
   if (!token) return;
-  fetch(`${API_URL}/categories/`, {
+  fetch(`${API_URL}/api/catalog/categories/`, {
     headers: { Authorization: `Bearer ${token}` }
   })
     .then(res => res.json())
@@ -138,7 +138,7 @@ export default function StockCountPage() {
       return;
     }
     try {
-      const res = await fetch(`${API_URL}/products/`, {
+      const res = await fetch(`${API_URL}/api/catalog/products/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -168,7 +168,7 @@ export default function StockCountPage() {
           setSubmitError("Session expired. Please log in again.");
           return;
         }
-        const retryRes = await fetch(`${API_URL}/products/`, {
+        const retryRes = await fetch(`${API_URL}/api/catalog/products/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -618,7 +618,7 @@ return (
                 return;
               }
               try {
-                const res = await fetch(`${API_URL}/categories/`, {
+                const res = await fetch(`${API_URL}/api/catalog/categories/`, {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",

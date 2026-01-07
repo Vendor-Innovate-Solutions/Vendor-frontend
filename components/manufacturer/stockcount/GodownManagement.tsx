@@ -43,7 +43,7 @@ export default function GodownManagement() {
         return;
       }
 
-      const response = await fetch(`${API_URL}/inventory/godowns/`, {
+      const response = await fetch(`${API_URL}/api/inventory/godowns/`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -52,7 +52,7 @@ export default function GodownManagement() {
       if (response.status === 401) {
         token = await refreshAccessToken();
         if (token) {
-          const retryResponse = await fetch(`${API_URL}/inventory/godowns/`, {
+          const retryResponse = await fetch(`${API_URL}/api/inventory/godowns/`, {
             headers: {
               Authorization: `Bearer ${token}`,
             },
@@ -147,7 +147,7 @@ export default function GodownManagement() {
         return;
       }
 
-      const response = await fetch(`${API_URL}/inventory/godowns/${id}/`, {
+      const response = await fetch(`${API_URL}/api/inventory/godowns/${id}/`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -157,7 +157,7 @@ export default function GodownManagement() {
       if (response.status === 401) {
         token = await refreshAccessToken();
         if (token) {
-          const retryResponse = await fetch(`${API_URL}/inventory/godowns/${id}/`, {
+          const retryResponse = await fetch(`${API_URL}/api/inventory/godowns/${id}/`, {
             method: 'DELETE',
             headers: {
               Authorization: `Bearer ${token}`,

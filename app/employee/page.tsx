@@ -33,7 +33,7 @@ export default function EmployeePage({ params }: PageProps) {
   useEffect(() => {
     async function fetchEmployeeId() {
       try {
-        const response = await fetchWithAuth(`${API_URL}/employee_id/`);
+        const response = await fetchWithAuth(`${API_URL}/api/workflow/employee_id/`);
         if (!response.ok) {
           throw new Error("Failed to fetch employee ID");
         }
@@ -58,7 +58,7 @@ export default function EmployeePage({ params }: PageProps) {
         setLoading(true);
         setError(null);
         const response = await fetchWithAuth(
-          `${API_URL}/employee_shipments?employeeId=${employeeId}`
+          `${API_URL}/api/workflow/employee_shipments?employeeId=${employeeId}`
         );
         const data = await response.json();
 
@@ -114,7 +114,7 @@ export default function EmployeePage({ params }: PageProps) {
   const handleUpdateStatus = async (shipmentId: number) => {
     try {
       const response = await fetchWithAuth(
-        `${API_URL}/update_shipment_status/`,
+        `${API_URL}/api/workflow/update_shipment_status/`,
         {
           method: "POST",
           body: JSON.stringify({

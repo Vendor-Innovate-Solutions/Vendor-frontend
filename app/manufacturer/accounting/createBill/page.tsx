@@ -276,7 +276,7 @@ export default function CreateBill() {
     };
 
     try {
-      const res = await fetchWithAuth(`${API_URL}/invoices/`, {
+      const res = await fetchWithAuth(`${API_URL}/api/invoice/invoices/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -71,7 +71,7 @@ export const fetchOrdersFromAPI = async () => {
     const token = authStorage.getAccessToken();
     if (!token) throw new Error("Authentication token not found. Please log in again.");
 
-    const response = await fetch(`${API_URL}/orders/`, {
+    const response = await fetch(`${API_URL}/retailer/orders/`, {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",

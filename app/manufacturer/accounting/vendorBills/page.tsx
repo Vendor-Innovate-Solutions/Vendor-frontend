@@ -170,7 +170,7 @@ export default function VendorBills() {
           return
         }
 
-        const res = await fetchWithAuth(`${API_URL}/invoices/?company=${companyId}`)
+        const res = await fetchWithAuth(`${API_URL}/api/invoice/invoices/?company=${companyId}`)
         if (res.ok) {
           const data = await res.json()
           setBills(Array.isArray(data) ? data : data.results || [])

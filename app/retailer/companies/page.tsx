@@ -45,7 +45,7 @@ export default function RetailerCompaniesPage() {
 
   const fetchPublicCompanies = async () => {
     try {
-      const response = await fetch(`${API_URL}/companies/public/`);
+      const response = await fetch(`${API_URL}/api/company/public/`);
       if (response.ok) {
         const data = await response.json();
         setPublicCompanies(data);
