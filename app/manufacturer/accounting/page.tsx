@@ -19,11 +19,11 @@ export default function AccountingDashboard() {
     if (!companyId) return;
 
     // Fetch total invoices count
-    const countRes = await fetchWithAuth(`${API_URL}/invoices/count/?company=${companyId}`);
+    const countRes = await fetchWithAuth(`${API_URL}/api/invoices/count/?company=${companyId}`);
     const countData = await countRes.json();
 
     // Fetch all invoices for the company
-    const invoicesRes = await fetchWithAuth(`${API_URL}/invoices/?company=${companyId}`);
+    const invoicesRes = await fetchWithAuth(`${API_URL}/api/invoices/?company=${companyId}`);
     const invoicesData = await invoicesRes.json();
 
     // Support both paginated and plain array responses

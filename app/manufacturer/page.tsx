@@ -362,7 +362,7 @@ const fetchOrders = useCallback(async () => {
       setOrdersLoading(false);
       return;
     }
-    const response = await fetchWithAuth(`${API_URL}/orders/?company=${companyId}`);
+    const response = await fetchWithAuth(`${API_URL}/api/orders/sales/?company=${companyId}`);
     if (!response.ok) throw new Error("Failed to fetch orders");
     const data = await response.json();
     setOrders(data.results || []);
@@ -378,7 +378,7 @@ const fetchOrders = useCallback(async () => {
 const approveOrder = async (orderId: number) => {
   setApproveLoadingId(orderId);
   try {
-    const response = await fetchWithAuth(`${API_URL}/approve_order/`, {
+    const response = await fetchWithAuth(`${API_URL}/api/orders/sales/${orderId}/confirm/`, {
       method: "POST",
       body: JSON.stringify({ order_id: orderId }),
     });
@@ -408,12 +408,13 @@ const fetchChartData = async () => {
     const companyId = localStorage.getItem("company_id");
     if (!companyId) return;
 
-    const response = await fetchWithAuth(`${API_URL}/shipment-stats/?company=${companyId}`);
+    const response = await fetchWithAuth(`${API_URL}/api/orders/sales/?company=${companyId}`);
     if (!response.ok) throw new Error("Failed to fetch shipment stats");
     const result = await response.json();
 
-    // Format for recharts
-    setChartData(formatChartData(result.data || []));
+    // Format for recharts - use orders data for now
+    const orders = Array.isArray(result) ? result : result.results || [];
+    setChartData(formatChartData(orders));
   } catch (err) {
     console.error("Error fetching chart data:", err);
     setChartData([]);
@@ -435,7 +436,7 @@ useEffect(() => {
         setShipmentsLoading(false);
         return;
     }
-      const response = await fetchWithAuth(`${API_URL}/orders/sales/?company=${companyId}`);
+      const response = await fetchWithAuth(`${API_URL}/api/orders/sales/?company=${companyId}`);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -472,7 +473,7 @@ useEffect(() => {
     // TODO: /count endpoint not yet implemented in backend
     // Using orders/sales and portal endpoints to calculate stats
     try {
-      const ordersResponse = await fetchWithAuth(`${API_URL}/orders/sales/?company=${companyId}`);
+      const ordersResponse = await fetchWithAuth(`${API_URL}/api/orders/sales/?company=${companyId}`);
       if (ordersResponse.ok) {
         const ordersData = await ordersResponse.json();
         const orders = Array.isArray(ordersData) ? ordersData : ordersData.results || [];
