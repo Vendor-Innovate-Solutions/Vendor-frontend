@@ -56,7 +56,7 @@ const SignUpPage = () => {
     const fetchCompanies = async () => {
       setLoadingCompanies(true);
       try {
-        const response = await fetch(`${API_URL}/api/company/discover/`);
+        const response = await fetch(`${API_URL}/portal/companies/discover/`);
         if (response.ok) {
           const data = await response.json();
           setCompanies(data);
@@ -85,7 +85,7 @@ const SignUpPage = () => {
     setMessage("");
 
     try {
-      const response = await fetch(`${API_URL}/auth/register/`, {
+      const response = await fetch(`${API_URL}/portal/register/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -64,7 +64,7 @@ export const OrderDetails = () => {
 
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://vendor-backend-production-bd99.up.railway.app";
-      const response = await fetch(`${API_URL}/api/token/refresh/`, {
+      const response = await fetch(`${API_URL}/auth/token/refresh/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

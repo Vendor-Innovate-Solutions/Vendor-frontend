@@ -53,7 +53,7 @@ export async function login(data: LoginFormData): Promise<LoginResponse> {
  * Register new user
  */
 export async function signup(data: SignupFormData): Promise<SignupResponse> {
-  const response = await fetch(`${API_URL}/auth/register/`, {
+  const response = await fetch(`${API_URL}/portal/register/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -79,7 +79,7 @@ export async function signup(data: SignupFormData): Promise<SignupResponse> {
  * Get list of companies for selection
  */
 export async function getCompanies(): Promise<Company[]> {
-  const response = await fetch(`${API_URL}/api/company/discover/`);
+  const response = await fetch(`${API_URL}/portal/companies/discover/`);
 
   if (!response.ok) {
     throw new Error("Failed to fetch companies");
@@ -92,7 +92,7 @@ export async function getCompanies(): Promise<Company[]> {
  * Refresh access token
  */
 export async function refreshToken(refreshToken: string): Promise<{ access: string }> {
-  const response = await fetch(`${API_URL}/auth/refresh/`, {
+  const response = await fetch(`${API_URL}/auth/token/refresh/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
