@@ -68,7 +68,7 @@ export default function RetailerPage() {
         return;
       }
       // No need to fetch companies anymore
-      const retailerRes = await fetchWithAuth(`${API_URL}/api/party/retailers/?company=${companyId}`);
+      const retailerRes = await fetchWithAuth(`${API_URL}/retailers/?company=${companyId}`);
         if (retailerRes.ok) {
           const retailerData = await retailerRes.json();
           const retailerList = Array.isArray(retailerData)
@@ -126,7 +126,7 @@ export default function RetailerPage() {
     setMessage("");
     try {
       const companyId = localStorage.getItem("company_id");
-      const res = await fetchWithAuth(`${API_URL}/api/party/retailers/add/?company=${companyId}`, {
+      const res = await fetchWithAuth(`${API_URL}/retailers/add/?company=${companyId}`, {
         method: "POST",
         body: JSON.stringify({
           ...form,
@@ -157,7 +157,7 @@ export default function RetailerPage() {
     setMessage("");
     if (!form.retailer_id) return;
     try {
-      const res = await fetchWithAuth(`${API_URL}/api/party/retailers/${form.retailer_id}/`, {
+      const res = await fetchWithAuth(`${API_URL}/retailers/${form.retailer_id}/`, {
         method: "PUT",
         body: JSON.stringify({
           ...form,

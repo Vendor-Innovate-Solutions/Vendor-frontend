@@ -31,7 +31,7 @@ export const useStockData = () => {
           setLoading(false);
           return;
         }
-        const response = await fetchWithAuth(`${API_URL}/api/catalog/products/?company=${companyId}`);
+        const response = await fetchWithAuth(`${API_URL}/products/?company=${companyId}`);
         if (!response.ok) throw new Error("Failed to fetch stock data");
 
         const data = await response.json();
@@ -79,7 +79,7 @@ export const useCategoryData = () => {
   useEffect(() => {
     const fetchCategoryData = async () => {
       try {
-        const response = await fetchWithAuth(`${API_URL}/api/inventory/category-stock/`);
+        const response = await fetchWithAuth(`${API_URL}/category-stock/`);
         if (!response.ok) throw new Error("Failed to fetch category data");
 
         const result = await response.json();
