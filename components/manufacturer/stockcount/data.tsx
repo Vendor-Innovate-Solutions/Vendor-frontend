@@ -31,7 +31,7 @@ export const useStockData = () => {
           setLoading(false);
           return;
         }
-        const response = await fetchWithAuth(`${API_URL}/api/catalog/products/?company=${companyId}`);
+        const response = await fetchWithAuth(`${API_URL}/api/catalog/products/`);
         if (!response.ok) throw new Error("Failed to fetch stock data");
 
         const data = await response.json();

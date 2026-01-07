@@ -70,7 +70,7 @@ export default function CreateBill() {
 
       // Retailers for this company
       const retailerRes = await fetchWithAuth(
-        `${API_URL}/api/party/retailers/?company=${companyId}`
+        `${API_URL}/api/party/retailers/`
       );
       if (retailerRes.ok) {
         const retailerData = await retailerRes.json();
@@ -83,7 +83,7 @@ export default function CreateBill() {
 
       // Products for this company
       const productRes = await fetchWithAuth(
-        `${API_URL}/api/catalog/products/?company=${companyId}`
+        `${API_URL}/api/catalog/products/`
       );
       if (productRes.ok) {
         const productData = await productRes.json();
@@ -94,7 +94,7 @@ export default function CreateBill() {
 
       // Invoice count
       const invoiceRes = await fetchWithAuth(
-        `${API_URL}/api/invoices/?company=${companyId}`
+        `${API_URL}/api/invoices/`
       );
       let count = 0;
       if (invoiceRes.ok) {
@@ -290,11 +290,8 @@ export default function CreateBill() {
         const companyId = localStorage.getItem("company_id");
         if (token && companyId) {
           // Fetch new count and update invoice number
-          const invoiceData = await fetch(
-            `${API_URL}/api/invoices/?company=${companyId}`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
+          const invoiceData = await fetchWithAuth(
+            `${API_URL}/api/invoices/`
           );
           let count = 0;
           if (invoiceData.ok) {

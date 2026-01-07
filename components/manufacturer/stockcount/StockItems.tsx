@@ -58,8 +58,11 @@ export default function StockItems() {
       if (!token) return;
 
       const companyId = localStorage.getItem('company_id');
-      const response = await fetch(`${API_URL}/api/catalog/products/?company=${companyId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await fetch(`${API_URL}/api/catalog/products/`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          ...(companyId && { "X-Company-ID": companyId }),
+        },
       });
 
       if (response.ok) {

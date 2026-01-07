@@ -19,7 +19,7 @@ export default function AccountingDashboard() {
     if (!companyId) return;
 
     // Fetch all invoices for the company
-    const invoicesRes = await fetchWithAuth(`${API_URL}/api/invoices/?company=${companyId}`);
+    const invoicesRes = await fetchWithAuth(`${API_URL}/api/invoices/`);
     const invoicesData = await invoicesRes.json();
 
     // Support both paginated and plain array responses

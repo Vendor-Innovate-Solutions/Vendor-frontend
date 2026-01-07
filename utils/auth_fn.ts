@@ -53,12 +53,16 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Re
   let token = getAuthToken();
   if (!token) throw new Error("Authentication token not found. Please log in again.");
 
+  // Get company_id from localStorage
+  const companyId = typeof window !== 'undefined' ? localStorage.getItem('company_id') : null;
+
   const response = await fetch(url, {
     ...options,
     headers: {
       ...options.headers,
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
+      ...(companyId && { "X-Company-ID": companyId }),
     },
   });
 
@@ -72,6 +76,7 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Re
         ...options.headers,
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
+        ...(companyId && { "X-Company-ID": companyId }),
       },
     });
   }

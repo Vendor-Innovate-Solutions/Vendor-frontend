@@ -362,7 +362,7 @@ const fetchOrders = useCallback(async () => {
       setOrdersLoading(false);
       return;
     }
-    const response = await fetchWithAuth(`${API_URL}/api/orders/sales/?company=${companyId}`);
+    const response = await fetchWithAuth(`${API_URL}/api/orders/sales/`);
     if (!response.ok) throw new Error("Failed to fetch orders");
     const data = await response.json();
     setOrders(data.results || []);
@@ -408,7 +408,7 @@ const fetchChartData = async () => {
     const companyId = localStorage.getItem("company_id");
     if (!companyId) return;
 
-    const response = await fetchWithAuth(`${API_URL}/api/orders/sales/?company=${companyId}`);
+    const response = await fetchWithAuth(`${API_URL}/api/orders/sales/`);
     if (!response.ok) throw new Error("Failed to fetch shipment stats");
     const result = await response.json();
 
@@ -436,7 +436,7 @@ useEffect(() => {
         setShipmentsLoading(false);
         return;
     }
-      const response = await fetchWithAuth(`${API_URL}/api/orders/sales/?company=${companyId}`);
+      const response = await fetchWithAuth(`${API_URL}/api/orders/sales/`);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -473,7 +473,7 @@ useEffect(() => {
     // TODO: /count endpoint not yet implemented in backend
     // Using orders/sales and portal endpoints to calculate stats
     try {
-      const ordersResponse = await fetchWithAuth(`${API_URL}/api/orders/sales/?company=${companyId}`);
+      const ordersResponse = await fetchWithAuth(`${API_URL}/api/orders/sales/`);
       if (ordersResponse.ok) {
         const ordersData = await ordersResponse.json();
         const orders = Array.isArray(ordersData) ? ordersData : ordersData.results || [];
