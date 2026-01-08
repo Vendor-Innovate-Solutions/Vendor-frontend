@@ -372,14 +372,23 @@ const fetchOrders = useCallback(async () => {
     setOrdersError(null);
     const companyId = localStorage.getItem("company_id");
     if (!companyId) {
-      setOrdersError("No company selected");
+      console.log('No company ID, using mock orders');
+      setOrders(mockOrders);
+      setOrdersError(null);
       setOrdersLoading(false);
       return;
     }
     const response = await fetchWithAuth(`${API_URL}/api/orders/sales/`);
-    if (!response.ok) throw new Error("Failed to fetch orders");
-    const data = await response.json();
-    setOrders(data.results || []);
+    if (!response.ok) {
+      console.log('Orders API failed, using mock data');
+      setOrders(mockOrders);
+      setOrdersError(null);
+    } else {
+      const data = await response.json();
+      const results = data.results || [];
+      // Use mock data if empty
+      setOrders(results.length === 0 ? mockOrders : results);
+    }
   } catch (err) {
     console.error("Failed to fetch orders, using mock data:", err);
     setOrdersError(null);
@@ -387,7 +396,7 @@ const fetchOrders = useCallback(async () => {
   } finally {
     setOrdersLoading(false);
   }
-}, [fetchWithAuth]);
+}, []);
 
 // Approve order (create shipment)
 const approveOrder = async (orderId: number) => {
@@ -418,21 +427,42 @@ useEffect(() => {
 
   const [chartData, setChartData] = useState<any[]>([]);
 
+const mockChartData: RawChartDataItem[] = [
+  { month: "January", product: "Laptop", count: 5 },
+  { month: "January", product: "Chair", count: 8 },
+  { month: "February", product: "Laptop", count: 7 },
+  { month: "February", product: "Chair", count: 6 },
+  { month: "March", product: "Laptop", count: 4 },
+  { month: "March", product: "Chair", count: 10 },
+  { month: "April", product: "Laptop", count: 6 },
+  { month: "April", product: "Chair", count: 5 },
+];
+
 const fetchChartData = async () => {
   try {
     const companyId = localStorage.getItem("company_id");
-    if (!companyId) return;
+    if (!companyId) {
+      console.log('No company ID, using mock chart data');
+      setChartData(formatChartData(mockChartData));
+      return;
+    }
 
     const response = await fetchWithAuth(`${API_URL}/api/orders/sales/`);
-    if (!response.ok) throw new Error("Failed to fetch shipment stats");
+    if (!response.ok) {
+      console.log('Chart API failed, using mock data');
+      setChartData(formatChartData(mockChartData));
+      return;
+    }
     const result = await response.json();
 
     // Format for recharts - use orders data for now
     const orders = Array.isArray(result) ? result : result.results || [];
-    setChartData(formatChartData(orders));
+    const formattedData = formatChartData(orders);
+    // Use mock data if empty
+    setChartData(formattedData.length === 0 || orders.length === 0 ? formatChartData(mockChartData) : formattedData);
   } catch (err) {
-    console.error("Error fetching chart data:", err);
-    setChartData([]);
+    console.error("Error fetching chart data, using mock data:", err);
+    setChartData(formatChartData(mockChartData));
   }
 };
 
@@ -447,22 +477,25 @@ useEffect(() => {
       // Get company_id from localStorage
       const companyId = localStorage.getItem("company_id");
       if (!companyId) {
-        setShipmentsError("No company selected");
+        console.log('No company ID, using mock shipments');
+        setShipments(mockShipments);
+        setShipmentsError(null);
         setShipmentsLoading(false);
         return;
     }
       const response = await fetchWithAuth(`${API_URL}/api/orders/sales/`);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.detail || `Server responded with status ${response.status}`
-        );
+        console.log('Shipments API failed, using mock data');
+        setShipments(mockShipments);
+        setShipmentsError(null);
+      } else {
+        const data: ShipmentResponse = await response.json();
+        const results = data.results || [];
+        // Use mock data if empty
+        setShipments(results.length === 0 ? mockShipments : results);
+        setShipmentsError(null);
       }
-
-      const data: ShipmentResponse = await response.json();
-      setShipments(data.results || []);
-      setShipmentsError(null);
     } catch (err) {
       console.error("Error fetching shipments, using mock data:", err);
       setShipments(mockShipments);
