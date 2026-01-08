@@ -99,10 +99,10 @@ interface AnomalyNotification {
 
 // Hardcoded data for fallback
 const testData: OverviewCard = {
-  totalOrders: 25,
+  totalOrders: 4,
   numStores: 8,
   deliveryAgents: 12,
-  pendingOrders: 5,
+  pendingOrders: 1,
 };
 
 const analyticsData: AnalyticsData = {
@@ -127,10 +127,59 @@ const mockShipments: Shipment[] = [
 ];
 
 const mockOrders: any[] = [
-  { id: 1, order_number: "SO-001", party_name: "ABC Retailers", order_date: "2026-01-08", status: "CONFIRMED", total_amount: 45000 },
-  { id: 2, order_number: "SO-002", party_name: "XYZ Traders", order_date: "2026-01-07", status: "DRAFT", total_amount: 32000 },
-  { id: 3, order_number: "SO-003", party_name: "Global Suppliers", order_date: "2026-01-06", status: "CONFIRMED", total_amount: 58000 },
-  { id: 4, order_number: "SO-004", party_name: "Metro Stores", order_date: "2026-01-05", status: "PENDING", total_amount: 22000 }
+  { 
+    id: 1, 
+    order_id: 1,
+    order_number: "SO-001", 
+    retailer_name: "ABC Retailers",
+    party_name: "ABC Retailers", 
+    order_date: "2026-01-08", 
+    status: "CONFIRMED", 
+    total_amount: 45000,
+    items: [
+      { id: 1, product_name: "Laptop HP Pavilion", quantity: 1 }
+    ]
+  },
+  { 
+    id: 2, 
+    order_id: 2,
+    order_number: "SO-002", 
+    retailer_name: "XYZ Traders",
+    party_name: "XYZ Traders", 
+    order_date: "2026-01-07", 
+    status: "DRAFT", 
+    total_amount: 32000,
+    items: [
+      { id: 2, product_name: "Office Chair Executive", quantity: 4 }
+    ]
+  },
+  { 
+    id: 3, 
+    order_id: 3,
+    order_number: "SO-003", 
+    retailer_name: "Global Suppliers",
+    party_name: "Global Suppliers", 
+    order_date: "2026-01-06", 
+    status: "CONFIRMED", 
+    total_amount: 58000,
+    items: [
+      { id: 3, product_name: "A4 Paper Ream", quantity: 100 },
+      { id: 4, product_name: "Wireless Mouse", quantity: 10 }
+    ]
+  },
+  { 
+    id: 4, 
+    order_id: 4,
+    order_number: "SO-004", 
+    retailer_name: "Metro Stores",
+    party_name: "Metro Stores", 
+    order_date: "2026-01-05", 
+    status: "PENDING", 
+    total_amount: 22000,
+    items: [
+      { id: 5, product_name: "Power Drill Set", quantity: 7 }
+    ]
+  }
 ];
 
 const chartData = [
@@ -530,10 +579,10 @@ useEffect(() => {
         // Use mock data if API returns empty
         if (orders.length === 0) {
           setOverviewData({
-            totalOrders: 25,
+            totalOrders: 4,
             numStores: 8,
             deliveryAgents: 12,
-            pendingOrders: 5,
+            pendingOrders: 1,
           });
         } else {
           setOverviewData((prevData) => ({
@@ -546,19 +595,19 @@ useEffect(() => {
       } else {
         // Use mock data on API failure
         setOverviewData({
-          totalOrders: 25,
+          totalOrders: 4,
           numStores: 8,
           deliveryAgents: 12,
-          pendingOrders: 5,
+          pendingOrders: 1,
         });
       }
     } catch (e) {
       console.error('Error fetching dashboard stats, using mock data:', e);
       setOverviewData({
-        totalOrders: 25,
+        totalOrders: 4,
         numStores: 8,
         deliveryAgents: 12,
-        pendingOrders: 5,
+        pendingOrders: 1,
       });
     }
 
