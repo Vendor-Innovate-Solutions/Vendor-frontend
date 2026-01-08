@@ -109,6 +109,7 @@ export function LoginForm({
           }
         } else if (result.user_type === "COMPANY_USER") {
           // Check if company exists
+          // TODO: Backend needs to implement /api/company/ list endpoint
           try {
             const companyRes = await fetch(`${API_URL}/api/company/`, {
               headers: {
@@ -123,6 +124,9 @@ export function LoginForm({
                 router.replace("/manufacturer/company?first=true");
                 return;
               }
+            } else if (companyRes.status === 404) {
+              // Endpoint not implemented yet, skip company check
+              console.warn('Company list endpoint not available');
             }
           } catch (err) {
             console.error("Error checking company:", err);

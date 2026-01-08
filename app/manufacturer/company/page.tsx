@@ -61,8 +61,16 @@ function CompanyPageContent() {
       setLoading(true);
       setError("");
       try {
+        // TODO: Backend needs to implement /api/company/ list endpoint
         const res = await fetchWithAuth(`${API_URL}/api/company/`);
-        if (res.ok) {
+        if (res.status === 404) {
+          // Endpoint not implemented yet
+          console.warn('Company list endpoint not available');
+          setCompanies([]);
+          setSelectedCompany(null);
+          setFormCompany(initialCompanyState);
+          setIsCreating(true);
+        } else if (res.ok) {
           const data = await res.json();
           setCompanies(data);
           if (data.length > 0) {

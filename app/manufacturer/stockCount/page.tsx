@@ -69,7 +69,6 @@ export default function StockCountPage() {
   category: "",
   available_quantity: "",
   price: "",
-  company: "",
   unit: "",
   total_shipped: "",
   total_required_quantity: "",
@@ -96,9 +95,8 @@ export default function StockCountPage() {
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState("");
   const [categories, setCategories] = useState<{category_id: number, name: string}[]>([]);
-  const [companies, setCompanies] = useState<{id: number, name: string}[]>([]);
 
-  // Fetch categories and companies for dropdowns
+  // Fetch categories for dropdown
   useEffect(() => {
   const token = localStorage.getItem("access_token");
   if (!token) return;
@@ -111,12 +109,6 @@ export default function StockCountPage() {
       setCategories(Array.isArray(data) ? data : (data.results || []));
     })
     .catch(() => setCategories([]));
-  fetch(`${API_URL}/api/company/`, {
-    headers: { Authorization: `Bearer ${token}` }
-  })
-    .then(res => res.json())
-    .then(data => setCompanies(Array.isArray(data) ? data : (data.results || [])))
-    .catch(() => setCompanies([]));
 }, []);
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -382,25 +374,6 @@ return (
                   required
                   className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700"
                 />
-              </div>
-              <div>
-                <label className="block text-sm mb-1 text-blue-200">
-                  Company
-                </label>
-                <select
-                  name="company"
-                  value={form.company}
-                  onChange={handleFormChange}
-                  required
-                  className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700"
-                >
-                  <option value="">Select Company</option>
-                  {companies.map((comp) => (
-                    <option key={comp.id} value={comp.id}>
-                      {comp.name}
-                    </option>
-                  ))}
-                </select>
               </div>
 
               <div className="relative">
