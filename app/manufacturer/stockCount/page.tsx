@@ -69,6 +69,7 @@ export default function StockCountPage() {
   category: "",
   available_quantity: "",
   price: "",
+  company: "",
   unit: "",
   total_shipped: "",
   total_required_quantity: "",
