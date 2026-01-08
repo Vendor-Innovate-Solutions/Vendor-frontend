@@ -50,6 +50,73 @@ const OrdersPage = () => {
   const [filter, setFilter] = useState('all');
   const [profileChecked, setProfileChecked] = useState(false);
 
+  // Mock data as fallback
+  const mockOrders: Order[] = [
+    {
+      id: 1,
+      order_id: "ORD-001",
+      company_name: "Demo Company Pvt Ltd",
+      company_id: 1,
+      product_name: "Laptop HP Pavilion",
+      product_id: 1,
+      required_qty: 3,
+      order_date: new Date(2026, 0, 5).toISOString(),
+      status: "delivered",
+      total_amount: 135000,
+      notes: "Bulk order for office setup"
+    },
+    {
+      id: 2,
+      order_id: "ORD-002",
+      company_name: "Demo Company Pvt Ltd",
+      company_id: 1,
+      product_name: "Office Chair Executive",
+      product_id: 2,
+      required_qty: 5,
+      order_date: new Date(2026, 0, 6).toISOString(),
+      status: "confirmed",
+      total_amount: 42500,
+      notes: "For new employees"
+    },
+    {
+      id: 3,
+      order_id: "ORD-003",
+      company_name: "Demo Company Pvt Ltd",
+      company_id: 1,
+      product_name: "A4 Paper Ream",
+      product_id: 3,
+      required_qty: 100,
+      order_date: new Date(2026, 0, 7).toISOString(),
+      status: "shipped",
+      total_amount: 25000
+    },
+    {
+      id: 4,
+      order_id: "ORD-004",
+      company_name: "Demo Company Pvt Ltd",
+      company_id: 1,
+      product_name: "Wireless Mouse Logitech",
+      product_id: 4,
+      required_qty: 10,
+      order_date: new Date(2026, 0, 8).toISOString(),
+      status: "pending",
+      total_amount: 6500
+    }
+  ];
+
+  const mockCompanies: Company[] = [
+    { id: 1, name: "Demo Company Pvt Ltd", status: "connected" },
+    { id: 2, name: "Global Suppliers Inc", status: "connected" }
+  ];
+
+  const mockProducts: Product[] = [
+    { id: 1, name: "Laptop HP Pavilion", price: 45000, stock: 50, company_name: "Demo Company Pvt Ltd", company_id: 1 },
+    { id: 2, name: "Office Chair Executive", price: 8500, stock: 25, company_name: "Demo Company Pvt Ltd", company_id: 1 },
+    { id: 3, name: "A4 Paper Ream", price: 250, stock: 500, company_name: "Demo Company Pvt Ltd", company_id: 1 },
+    { id: 4, name: "Wireless Mouse Logitech", price: 650, stock: 100, company_name: "Demo Company Pvt Ltd", company_id: 1 },
+    { id: 5, name: "Power Drill Set", price: 3200, stock: 30, company_name: "Demo Company Pvt Ltd", company_id: 1 }
+  ];
+
   // Check if retailer profile exists
   useEffect(() => {
     const checkProfile = async () => {
@@ -85,7 +152,8 @@ const OrdersPage = () => {
         setOrders(Array.isArray(data) ? data : data.results || []);
       }
     } catch (error) {
-      console.error('Failed to fetch orders:', error);
+      console.error('Failed to fetch orders, using mock data:', error);
+      setOrders(mockOrders);
     }
     setLoading(false);
   };
@@ -100,7 +168,8 @@ const OrdersPage = () => {
         setCompanies(connectedCompanies);
       }
     } catch (error) {
-      console.error('Failed to fetch companies:', error);
+      console.error('Failed to fetch companies, using mock data:', error);
+      setCompanies(mockCompanies);
     }
   };
 
@@ -112,7 +181,8 @@ const OrdersPage = () => {
         setProducts(Array.isArray(data) ? data : data.results || []);
       }
     } catch (error) {
-      console.error('Failed to fetch products:', error);
+      console.error('Failed to fetch products, using mock data:', error);
+      setProducts(mockProducts);
     }
   };
 

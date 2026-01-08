@@ -38,6 +38,23 @@ const ProductsPage = () => {
 
   const categories = ['Electronics', 'Clothing', 'Food', 'Books', 'Home', 'Sports'];
 
+  // Mock data as fallback
+  const mockProducts: Product[] = [
+    { id: 1, name: "Laptop HP Pavilion", price: 45000, category: "Electronics", stock: 50, image: "/placeholder.jpg", company_name: "Demo Company Pvt Ltd", company_id: 1, description: "High-performance laptop for office work" },
+    { id: 2, name: "Office Chair Executive", price: 8500, category: "Home", stock: 25, image: "/placeholder.jpg", company_name: "Demo Company Pvt Ltd", company_id: 1, description: "Ergonomic office chair with lumbar support" },
+    { id: 3, name: "A4 Paper Ream", price: 250, category: "Books", stock: 500, image: "/placeholder.jpg", company_name: "Demo Company Pvt Ltd", company_id: 1, description: "500 sheets premium quality paper" },
+    { id: 4, name: "Wireless Mouse Logitech", price: 650, category: "Electronics", stock: 100, image: "/placeholder.jpg", company_name: "Demo Company Pvt Ltd", company_id: 1, description: "Comfortable wireless mouse with long battery life" },
+    { id: 5, name: "Power Drill Set", price: 3200, category: "Home", stock: 30, image: "/placeholder.jpg", company_name: "Demo Company Pvt Ltd", company_id: 1, description: "Complete power drill kit with accessories" },
+    { id: 6, name: "LED Desk Lamp", price: 1200, category: "Electronics", stock: 60, image: "/placeholder.jpg", company_name: "Demo Company Pvt Ltd", company_id: 1, description: "Adjustable LED lamp with touch controls" },
+    { id: 7, name: "Whiteboard Markers Set", price: 180, category: "Books", stock: 200, image: "/placeholder.jpg", company_name: "Demo Company Pvt Ltd", company_id: 1, description: "Pack of 5 colorful whiteboard markers" },
+    { id: 8, name: "Steel Filing Cabinet", price: 12000, category: "Home", stock: 15, image: "/placeholder.jpg", company_name: "Demo Company Pvt Ltd", company_id: 1, description: "4-drawer steel filing cabinet with lock" }
+  ];
+
+  const mockCompanies: Company[] = [
+    { id: 1, name: "Demo Company Pvt Ltd", status: "connected" },
+    { id: 2, name: "Global Suppliers Inc", status: "connected" }
+  ];
+
   // Check if retailer profile exists
   useEffect(() => {
     const checkProfile = async () => {
@@ -72,7 +89,8 @@ const ProductsPage = () => {
         setCompanies(connectedCompanies);
       }
     } catch (error) {
-      console.error('Failed to fetch companies:', error);
+      console.error('Failed to fetch companies, using mock data:', error);
+      setCompanies(mockCompanies);
     }
   };
 
@@ -88,7 +106,8 @@ const ProductsPage = () => {
         console.error('Failed to fetch products');
       }
     } catch (error) {
-      console.error('Failed to fetch products:', error);
+      console.error('Failed to fetch products, using mock data:', error);
+      setProducts(mockProducts);
     }
     setLoading(false);
   };

@@ -112,6 +112,95 @@ const ConnectionsPage = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Mock data as fallback
+  const mockRequests: RetailerRequest[] = [
+    {
+      id: 1,
+      retailer: { id: 101, username: "abc_retail", email: "contact@abcretail.com", first_name: "Rajesh", last_name: "Kumar" },
+      company: { id: 1, name: "ABC Retailers Pvt Ltd", address: "123 MG Road, Bangalore" },
+      status: 'pending',
+      message: "We would like to purchase electronics and furniture in bulk",
+      requested_at: new Date(2026, 0, 5).toISOString(),
+      reviewed_at: null,
+      reviewed_by: null
+    },
+    {
+      id: 2,
+      retailer: { id: 102, username: "xyz_traders", email: "info@xyztraders.com", first_name: "Priya", last_name: "Sharma" },
+      company: { id: 2, name: "XYZ Traders", address: "45 Park Street, Mumbai" },
+      status: 'pending',
+      message: "Looking for reliable supplier for stationery items",
+      requested_at: new Date(2026, 0, 7).toISOString(),
+      reviewed_at: null,
+      reviewed_by: null
+    }
+  ];
+
+  const mockConnections: Connection[] = [
+    {
+      id: 1,
+      company: { id: 3, name: "Global Suppliers Inc", address: "78 Nehru Place, Delhi" },
+      retailer: { id: 103, username: "global_retail", email: "sales@globalsuppliers.com", first_name: "Amit", last_name: "Patel" },
+      status: 'approved',
+      connected_at: new Date(2025, 11, 15).toISOString(),
+      approved_by: null,
+      approved_at: new Date(2025, 11, 15).toISOString(),
+      credit_limit: 200000,
+      payment_terms: "Net 30 days"
+    },
+    {
+      id: 2,
+      company: { id: 4, name: "Metro Retailers", address: "90 Anna Salai, Chennai" },
+      retailer: { id: 104, username: "metro_retail", email: "purchase@metroretail.com", first_name: "Sunita", last_name: "Reddy" },
+      status: 'approved',
+      connected_at: new Date(2025, 11, 20).toISOString(),
+      approved_by: null,
+      approved_at: new Date(2025, 11, 20).toISOString(),
+      credit_limit: 150000,
+      payment_terms: "Net 45 days"
+    },
+    {
+      id: 3,
+      company: { id: 5, name: "City Mart Wholesale", address: "12 Salt Lake, Kolkata" },
+      retailer: { id: 105, username: "citymart", email: "orders@citymart.com", first_name: "Vikram", last_name: "Singh" },
+      status: 'approved',
+      connected_at: new Date(2026, 0, 2).toISOString(),
+      approved_by: null,
+      approved_at: new Date(2026, 0, 2).toISOString(),
+      credit_limit: 100000,
+      payment_terms: "Net 30 days"
+    }
+  ];
+
+  const mockInvitations: Invitation[] = [
+    {
+      id: 1,
+      invite_code: "INV-ABC-2026-001",
+      company: { id: 1, name: "Demo Company Pvt Ltd", address: "Corporate Office, Mumbai" },
+      invited_by: { id: 1, username: "admin", email: "admin@democompany.com" },
+      email: "newretailer@example.com",
+      message: "Join our network to access exclusive wholesale prices",
+      created_at: new Date(2026, 0, 6).toISOString(),
+      expires_at: new Date(2026, 0, 13).toISOString(),
+      is_used: false,
+      used_at: null,
+      used_by: null
+    },
+    {
+      id: 2,
+      invite_code: "INV-XYZ-2025-099",
+      company: { id: 1, name: "Demo Company Pvt Ltd", address: "Corporate Office, Mumbai" },
+      invited_by: { id: 1, username: "admin", email: "admin@democompany.com" },
+      email: "partner@retailshop.com",
+      message: "Welcome to our B2B platform",
+      created_at: new Date(2025, 11, 28).toISOString(),
+      expires_at: new Date(2026, 0, 4).toISOString(),
+      is_used: true,
+      used_at: new Date(2026, 0, 2).toISOString(),
+      used_by: { id: 105, username: "citymart" }
+    }
+  ];
+
   useEffect(() => {
     if (activeTab === 'requests') {
       fetchRequests();
@@ -131,7 +220,8 @@ const ConnectionsPage = () => {
         setRequests(Array.isArray(data) ? data : data.results || []);
       }
     } catch (error) {
-      console.error('Failed to fetch requests:', error);
+      console.error('Failed to fetch requests, using mock data:', error);
+      setRequests(mockRequests);
     } finally {
       setRequestsLoading(false);
     }
@@ -146,7 +236,8 @@ const ConnectionsPage = () => {
         setConnections(Array.isArray(data) ? data : data.results || []);
       }
     } catch (error) {
-      console.error('Failed to fetch connections:', error);
+      console.error('Failed to fetch connections, using mock data:', error);
+      setConnections(mockConnections);
     } finally {
       setConnectionsLoading(false);
     }
@@ -161,7 +252,8 @@ const ConnectionsPage = () => {
         setInvitations(Array.isArray(data) ? data : data.results || []);
       }
     } catch (error) {
-      console.error('Failed to fetch invitations:', error);
+      console.error('Failed to fetch invitations, using mock data:', error);
+      setInvitations(mockInvitations);
     } finally {
       setInvitationsLoading(false);
     }
