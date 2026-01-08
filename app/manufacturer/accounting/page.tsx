@@ -36,20 +36,26 @@ export default function AccountingDashboard() {
         ? invoicesData.results
         : [];
 
-    // Calculate pending payments and total revenue
-    let pendingPayments = invoices.filter(
-      (inv: any) => inv.payment_status && inv.payment_status.toLowerCase() === 'unpaid'
-    ).length;
+    // Use mock data if no invoices
+    if (invoices.length === 0) {
+      console.log('No invoices from API, using mock data');
+      setStats(mockStats);
+    } else {
+      // Calculate pending payments and total revenue
+      let pendingPayments = invoices.filter(
+        (inv: any) => inv.payment_status && inv.payment_status.toLowerCase() === 'unpaid'
+      ).length;
 
-    let totalRevenue = invoices.reduce(
-      (sum: number, inv: any) => sum + (parseFloat(inv.grand_total) || 0), 0
-    );
+      let totalRevenue = invoices.reduce(
+        (sum: number, inv: any) => sum + (parseFloat(inv.grand_total) || 0), 0
+      );
 
-    setStats({
-      totalInvoices: invoices.length,
-      pendingPayments,
-      totalRevenue,
-    });
+      setStats({
+        totalInvoices: invoices.length,
+        pendingPayments,
+        totalRevenue,
+      });
+    }
     } catch (err) {
       console.error('Failed to fetch accounting stats, using mock data:', err);
       setStats(mockStats);

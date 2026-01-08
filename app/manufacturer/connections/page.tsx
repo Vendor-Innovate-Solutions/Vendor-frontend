@@ -217,7 +217,9 @@ const ConnectionsPage = () => {
       const response = await fetchWithAuth(`${API_URL}/api/portal/retailers/?status=PENDING`);
       if (response.ok) {
         const data = await response.json();
-        setRequests(Array.isArray(data) ? data : data.results || []);
+        const results = Array.isArray(data) ? data : data.results || [];
+        // Use mock data if empty
+        setRequests(results.length === 0 ? mockRequests : results);
       }
     } catch (error) {
       console.error('Failed to fetch requests, using mock data:', error);
@@ -233,7 +235,9 @@ const ConnectionsPage = () => {
       const response = await fetchWithAuth(`${API_URL}/api/portal/retailers/?status=APPROVED`);
       if (response.ok) {
         const data = await response.json();
-        setConnections(Array.isArray(data) ? data : data.results || []);
+        const results = Array.isArray(data) ? data : data.results || [];
+        // Use mock data if empty
+        setConnections(results.length === 0 ? mockConnections : results);
       }
     } catch (error) {
       console.error('Failed to fetch connections, using mock data:', error);
@@ -249,7 +253,9 @@ const ConnectionsPage = () => {
       const response = await fetchWithAuth(`${API_URL}/api/portal/retailers/`);
       if (response.ok) {
         const data = await response.json();
-        setInvitations(Array.isArray(data) ? data : data.results || []);
+        const results = Array.isArray(data) ? data : data.results || [];
+        // Use mock data if empty
+        setInvitations(results.length === 0 ? mockInvitations : results);
       }
     } catch (error) {
       console.error('Failed to fetch invitations, using mock data:', error);

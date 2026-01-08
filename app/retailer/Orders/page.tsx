@@ -149,7 +149,11 @@ const OrdersPage = () => {
       const response = await fetchWithAuth(`${API_URL}/api/portal/orders/`);
       if (response.ok) {
         const data = await response.json();
-        setOrders(Array.isArray(data) ? data : data.results || []);
+        const results = Array.isArray(data) ? data : data.results || [];
+        // Use mock data if empty
+        setOrders(results.length === 0 ? mockOrders : results);
+      } else {
+        setOrders(mockOrders);
       }
     } catch (error) {
       console.error('Failed to fetch orders, using mock data:', error);
@@ -165,7 +169,10 @@ const OrdersPage = () => {
         const data = await response.json();
         const connectedCompanies = (Array.isArray(data) ? data : data.results || [])
           .filter((company: Company) => company.status === 'connected');
-        setCompanies(connectedCompanies);
+        // Use mock data if empty
+        setCompanies(connectedCompanies.length === 0 ? mockCompanies : connectedCompanies);
+      } else {
+        setCompanies(mockCompanies);
       }
     } catch (error) {
       console.error('Failed to fetch companies, using mock data:', error);
@@ -178,7 +185,11 @@ const OrdersPage = () => {
       const response = await fetchWithAuth(`${API_URL}/api/portal/items/`);
       if (response.ok) {
         const data = await response.json();
-        setProducts(Array.isArray(data) ? data : data.results || []);
+        const results = Array.isArray(data) ? data : data.results || [];
+        // Use mock data if empty
+        setProducts(results.length === 0 ? mockProducts : results);
+      } else {
+        setProducts(mockProducts);
       }
     } catch (error) {
       console.error('Failed to fetch products, using mock data:', error);

@@ -51,21 +51,37 @@ export const useStockData = () => {
         const products = data.products || [];
         console.log("Number of products:", products.length);
         
-        const formattedData = products.map((item: any) => ({
-          productName: item.name || "Unknown",
-          category: item.category_id || 0,
-          available: item.available_quantity || 0,
-          sold: 0, // Not included in list view, need detail endpoint
-          demanded: 0, // Not included in list view, need detail endpoint
-        }));
-        
-        console.log("Formatted stock data:", formattedData);
+        // Use mock data if no products
+        if (products.length === 0) {
+          console.log("No products from API, using mock data");
+          const mockData: StockItem[] = [
+            { productName: "Laptop HP Pavilion", category: 1, available: 50, sold: 25, demanded: 30 },
+            { productName: "Office Chair Executive", category: 2, available: 25, sold: 15, demanded: 20 },
+            { productName: "A4 Paper Ream", category: 3, available: 500, sold: 200, demanded: 100 },
+            { productName: "Wireless Mouse", category: 1, available: 100, sold: 50, demanded: 45 },
+            { productName: "Power Drill Set", category: 2, available: 30, sold: 12, demanded: 18 },
+            { productName: "LED Desk Lamp", category: 1, available: 60, sold: 22, demanded: 25 },
+            { productName: "Whiteboard Markers", category: 3, available: 200, sold: 80, demanded: 60 },
+            { productName: "Steel Cabinet", category: 2, available: 15, sold: 8, demanded: 10 }
+          ];
+          setStockData(mockData);
+        } else {
+          const formattedData = products.map((item: any) => ({
+            productName: item.name || "Unknown",
+            category: item.category_id || 0,
+            available: item.available_quantity || 0,
+            sold: 0, // Not included in list view, need detail endpoint
+            demanded: 0, // Not included in list view, need detail endpoint
+          }));
+          
+          console.log("Formatted stock data:", formattedData);
 
-        setStockData((prevStockData) =>
-          JSON.stringify(prevStockData) === JSON.stringify(formattedData)
-            ? prevStockData
-            : formattedData
-        );
+          setStockData((prevStockData) =>
+            JSON.stringify(prevStockData) === JSON.stringify(formattedData)
+              ? prevStockData
+              : formattedData
+          );
+        }
 
         setError(null);
       } catch (error) {
@@ -98,11 +114,25 @@ export const useCategoryData = () => {
 
         const result = await response.json();
         console.log("Fetched category data:", result);
+        
+        const categoriesData = result.categories || [];
+        
+        // Use mock data if no categories
+        if (categoriesData.length === 0) {
+          console.log("No categories from API, using mock data");
+          const mockCategories: CategoryItem[] = [
+            { category_id: 1, name: "Electronics", product_count: 8, fill: "#3b82f6" },
+            { category_id: 2, name: "Furniture", product_count: 5, fill: "#10b981" },
+            { category_id: 3, name: "Office Supplies", product_count: 12, fill: "#f59e0b" }
+          ];
+          setCategoryData(mockCategories);
+          setError(null);
+          setLoading(false);
+          return;
+        }
 
         // Backend returns { categories: [...], count: N }
-        const categories = result.categories || [];
-
-        const formattedData: CategoryItem[] = categories.map(
+        const formattedData: CategoryItem[] = categoriesData.map(
           (
             category: {
               category_id: number;

@@ -86,7 +86,10 @@ const ProductsPage = () => {
         const data = await response.json();
         const connectedCompanies = (Array.isArray(data) ? data : data.results || [])
           .filter((company: Company) => company.status === 'connected');
-        setCompanies(connectedCompanies);
+        // Use mock data if empty
+        setCompanies(connectedCompanies.length === 0 ? mockCompanies : connectedCompanies);
+      } else {
+        setCompanies(mockCompanies);
       }
     } catch (error) {
       console.error('Failed to fetch companies, using mock data:', error);
@@ -101,9 +104,12 @@ const ProductsPage = () => {
       const response = await fetchWithAuth(`${API_URL}/api/portal/items/`);
       if (response.ok) {
         const data = await response.json();
-        setProducts(Array.isArray(data) ? data : data.results || []);
+        const results = Array.isArray(data) ? data : data.results || [];
+        // Use mock data if empty
+        setProducts(results.length === 0 ? mockProducts : results);
       } else {
         console.error('Failed to fetch products');
+        setProducts(mockProducts);
       }
     } catch (error) {
       console.error('Failed to fetch products, using mock data:', error);

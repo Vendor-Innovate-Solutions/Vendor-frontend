@@ -35,7 +35,11 @@ export default function CustomerInvoice() {
         const response = await fetchWithAuth(`${API_URL}/api/invoices/`);
         if (response.ok) {
           const data = await response.json();
-          setInvoices(Array.isArray(data) ? data : data.results || []);
+          const results = Array.isArray(data) ? data : data.results || [];
+          // Use mock data if empty
+          setInvoices(results.length === 0 ? mockInvoices : results);
+        } else {
+          setInvoices(mockInvoices);
         }
       } catch (err) {
         console.error('Failed to fetch invoices, using mock data:', err);

@@ -124,7 +124,8 @@ export default function EmployeePage({ params }: PageProps) {
             shipment.status === "cancelled" ? "Unknown" : undefined,
         }));
 
-        setOrders(mappedOrders);
+        // Use mock data if empty
+        setOrders(mappedOrders.length === 0 ? mockOrders : mappedOrders);
       } catch (error) {
         console.error("Failed to fetch shipments, using mock data:", error);
         setOrders(mockOrders); // Use mock data if API fails
