@@ -27,18 +27,30 @@ export const useStockData = () => {
       try {
         const companyId = localStorage.getItem("company_id");
         if (!companyId) {
+          console.error("No company_id in localStorage");
           setError("No company selected");
           setLoading(false);
           return;
         }
+        console.log("Fetching products for company:", companyId);
         const response = await fetchWithAuth(`${API_URL}/api/catalog/products/`);
-        if (!response.ok) throw new Error("Failed to fetch stock data");
+        console.log("Response status:", response.status);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Failed to fetch products:", errorText);
+          throw new Error("Failed to fetch stock data");
+        }
 
         const data = await response.json();
-        console.log("Fetched stock data:", data);
+        console.log("Fetched stock data raw:", data);
+        console.log("Products array:", data.products);
+        console.log("Products count:", data.count);
 
         // Backend returns { products: [...], count: N }
         const products = data.products || [];
+        console.log("Number of products:", products.length);
+        
         const formattedData = products.map((item: any) => ({
           productName: item.name || "Unknown",
           category: item.category_id || 0,
@@ -46,6 +58,8 @@ export const useStockData = () => {
           sold: 0, // Not included in list view, need detail endpoint
           demanded: 0, // Not included in list view, need detail endpoint
         }));
+        
+        console.log("Formatted stock data:", formattedData);
 
         setStockData((prevStockData) =>
           JSON.stringify(prevStockData) === JSON.stringify(formattedData)

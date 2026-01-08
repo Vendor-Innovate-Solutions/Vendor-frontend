@@ -67,7 +67,8 @@ export default function StockItems() {
 
       if (response.ok) {
         const data = await response.json();
-        setProducts(Array.isArray(data) ? data : data.results || []);
+        // Backend returns { products: [...], count: N }
+        setProducts(data.products || []);
       }
     } catch (err) {
       console.error('Failed to fetch products:', err);
