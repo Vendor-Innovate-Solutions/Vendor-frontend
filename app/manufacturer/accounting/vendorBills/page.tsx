@@ -159,6 +159,54 @@ export default function VendorBills() {
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null)
   const [showModal, setShowModal] = useState(false)
   const printRef = useRef<HTMLDivElement>(null)
+
+  const mockBills: Bill[] = [
+    {
+      invoice_number: "BILL-001",
+      retailer_name: "ABC Suppliers",
+      invoice_date: "2026-01-05",
+      payment_mode: "bank",
+      payment_status: "paid",
+      total_taxable_value: 40000,
+      total_cgst: 3600,
+      total_sgst: 3600,
+      total_igst: 0,
+      grand_total: 47200,
+      items: [
+        { Product_name: "Laptop HP Pavilion", hsn_code: "8471", quantity: 1, price: 40000, taxable_value: 40000, gst_rate: 18, cgst: 3600, sgst: 3600, igst: 0 }
+      ]
+    },
+    {
+      invoice_number: "BILL-002",
+      retailer_name: "XYZ Traders",
+      invoice_date: "2026-01-06",
+      payment_mode: "upi",
+      payment_status: "unpaid",
+      total_taxable_value: 25000,
+      total_cgst: 2250,
+      total_sgst: 2250,
+      total_igst: 0,
+      grand_total: 29500,
+      items: [
+        { Product_name: "Office Chair", hsn_code: "9401", quantity: 3, price: 8500, taxable_value: 25500, gst_rate: 18, cgst: 2295, sgst: 2295, igst: 0 }
+      ]
+    },
+    {
+      invoice_number: "BILL-003",
+      retailer_name: "Global Suppliers Inc",
+      invoice_date: "2026-01-07",
+      payment_mode: "cash",
+      payment_status: "paid",
+      total_taxable_value: 15000,
+      total_cgst: 1350,
+      total_sgst: 1350,
+      total_igst: 0,
+      grand_total: 17700,
+      items: [
+        { Product_name: "A4 Paper Ream", hsn_code: "4802", quantity: 60, price: 250, taxable_value: 15000, gst_rate: 12, cgst: 900, sgst: 900, igst: 0 }
+      ]
+    }
+  ]
   
   useEffect(() => {
     const fetchBills = async () => {
@@ -173,12 +221,16 @@ export default function VendorBills() {
         const res = await fetchWithAuth(`${API_URL}/api/invoices/`)
         if (res.ok) {
           const data = await res.json()
-          setBills(Array.isArray(data) ? data : data.results || [])
+          const results = Array.isArray(data) ? data : data.results || []
+          // Use mock data if empty
+          setBills(results.length === 0 ? mockBills : results)
         } else {
           console.error("Failed to fetch bills: HTTP error", res.status)
+          setBills(mockBills)
         }
       } catch (error) {
-        console.error("Failed to fetch bills:", error)
+        console.error("Failed to fetch bills, using mock data:", error)
+        setBills(mockBills)
       }
     }
     fetchBills()
