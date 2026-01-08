@@ -37,15 +37,15 @@ export const useStockData = () => {
         const data = await response.json();
         console.log("Fetched stock data:", data);
 
-        const formattedData = Array.isArray(data)
-          ? data.map((item) => ({
-              productName: item.name || "Unknown",
-              category: item.category || 0,
-              available: item.available_quantity || 0,
-              sold: item.total_shipped || 0,
-              demanded: item.total_required_quantity || 0,
-            }))
-          : [];
+        // Backend returns { products: [...], count: N }
+        const products = data.products || [];
+        const formattedData = products.map((item: any) => ({
+          productName: item.name || "Unknown",
+          category: item.category_id || 0,
+          available: item.available_quantity || 0,
+          sold: 0, // Not included in list view, need detail endpoint
+          demanded: 0, // Not included in list view, need detail endpoint
+        }));
 
         setStockData((prevStockData) =>
           JSON.stringify(prevStockData) === JSON.stringify(formattedData)
@@ -85,9 +85,10 @@ export const useCategoryData = () => {
         const result = await response.json();
         console.log("Fetched category data:", result);
 
-        const data = result.data || [];
+        // Backend returns { categories: [...], count: N }
+        const categories = result.categories || [];
 
-        const formattedData: CategoryItem[] = data.map(
+        const formattedData: CategoryItem[] = categories.map(
           (
             category: {
               category_id: number;
