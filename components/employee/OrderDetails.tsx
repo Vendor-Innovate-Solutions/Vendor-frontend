@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { apiClient } from "@/utils/api";
 
 interface Order {
   order_id: number;
@@ -17,27 +18,17 @@ export const OrderDetails = () => {
 
   const fetchOrders = async () => {
     try {
-      let token = localStorage.getItem("access_token");
-      if (!token) throw new Error("No authentication token found");
+      const response = await apiClient.get<Order[]>("/employee_orders/");
 
-      let response = await fetchOrdersWithToken(token);
-
-      if (response.status === 401) {
-        console.log("Access token expired. Trying to refresh...");
-        const newToken = await refreshAccessToken();
-
-        if (newToken) {
-          localStorage.setItem("access_token", newToken);
-          response = await fetchOrdersWithToken(newToken); // Retry with new token
-        } else {
-          throw new Error("Failed to refresh token");
-        }
+      if (response.error) {
+        throw new Error(response.error);
       }
 
-      const data: Order[] = await response.json();
-      if (!Array.isArray(data)) throw new Error("Invalid data format from API");
-
-      setOrders(data);
+      if (response.data && Array.isArray(response.data)) {
+        setOrders(response.data);
+      } else {
+        throw new Error("Invalid data format from API");
+      }
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "Unknown error occurred"
@@ -47,45 +38,9 @@ export const OrderDetails = () => {
     }
   };
 
-  const fetchOrdersWithToken = async (token: string) => {
-    return fetch("http://127.0.0.1:8000/api/employee_orders/", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-  };
-
-  const refreshAccessToken = async (): Promise<string | null> => {
-    const refreshToken = localStorage.getItem("refresh_token");
-    if (!refreshToken) return null;
-
-    try {
-      const response = await fetch("http://127.0.0.1:8000/api/token/refresh/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ refresh: refreshToken }),
-      });
-
-      if (!response.ok) {
-        console.error("Failed to refresh token");
-        return null;
-      }
-
-      const data = await response.json();
-      return data.access; // Return the new access token
-    } catch (error) {
-      console.error("Error refreshing token:", error);
-      return null;
-    }
-  };
-
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 5000); // Poll every 10 seconds
+    const interval = setInterval(fetchOrders, 5000); // Poll every 5 seconds
     return () => clearInterval(interval);
   }, []);
 

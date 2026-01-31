@@ -79,7 +79,7 @@ export async function signup(data: SignupFormData): Promise<SignupResponse> {
  * Get list of companies for selection
  */
 export async function getCompanies(): Promise<Company[]> {
-  const response = await fetch(`${API_URL}/api/company/discover/`);
+  const response = await fetch(`${API_URL}/company/discover/`);
 
   if (!response.ok) {
     throw new Error("Failed to fetch companies");

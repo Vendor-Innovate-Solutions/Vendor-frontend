@@ -1,64 +1,96 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Package, Clock, CheckCircle, X, Eye, Building2 } from 'lucide-react';
+import { 
+  Plus, 
+  Package, 
+  Clock, 
+  CheckCircle, 
+  X, 
+  Eye, 
+  Building2,
+  ShoppingCart,
+  Minus,
+  Trash2,
+  Loader,
+  AlertCircle,
+  Search,
+  Filter
+} from 'lucide-react';
 import { RetailerNavbar } from '../../../components/retailer/nav_bar';
-import { authStorage } from '../../../utils/localStorage';
-import { fetchWithAuth, API_URL } from '../../../utils/auth_fn';
-
-interface Order {
-  id: number;
-  order_id: string;
-  company_name: string;
-  company_id: number;
-  product_name: string;
-  product_id: number;
-  required_qty: number;
-  order_date: string;
-  status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
-  total_amount: number;
-  notes?: string;
-}
+import { apiClient } from '../../../utils/api';
 
 interface Product {
-  id: number;
+  id: string;
+  product_id?: string;
   name: string;
-  price: number;
-  stock: number;
-  company_name: string;
-  company_id: number;
+  category_name?: string;
+  company_name?: string;
+  company_id?: string;
+  available_quantity: string;
+  unit: string;
+  price: string;
+  status?: string;
 }
 
 interface Company {
-  id: number;
-  name: string;
+  id: string;
+  company_id?: string;
+  company_name: string;
   status: string;
+}
+
+interface CartItem {
+  product: Product;
+  quantity: number;
+}
+
+interface Order {
+  id: string;
+  order_number: string;
+  company_name: string;
+  order_date: string;
+  status: string;
+  total_amount: string;
+  item_count: number;
 }
 
 const OrdersPage = () => {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'orders' | 'create'>('orders');
   const [orders, setOrders] = useState<Order[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedCompany, setSelectedCompany] = useState('');
-  const [selectedProduct, setSelectedProduct] = useState('');
-  const [quantity, setQuantity] = useState(1);
+  const [selectedCompany, setSelectedCompany] = useState<string>('');
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [profileChecked, setProfileChecked] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  // Check if retailer profile exists
+  // Check if retailer profile exists using context API
   useEffect(() => {
     const checkProfile = async () => {
       try {
-        const response = await fetchWithAuth(`${API_URL}/retailer/profile/`);
-        if (!response.ok) {
+        const contextResponse = await apiClient.get('/users/me/context/');
+        
+        if (contextResponse.data) {
+          const context = contextResponse.data;
+          
+          // If is_portal_user is false, profile not complete - redirect to setup
+          if (!context.is_portal_user) {
+            router.replace('/retailer/setup');
+            return;
+          }
+        } else {
           router.replace('/retailer/setup');
           return;
         }
+        
         setProfileChecked(true);
       } catch (error) {
         router.replace('/retailer/setup');
@@ -73,16 +105,25 @@ const OrdersPage = () => {
 
     fetchOrders();
     fetchConnectedCompanies();
-    fetchProducts();
   }, [profileChecked]);
+
+  useEffect(() => {
+    if (selectedCompany) {
+      fetchProducts(selectedCompany);
+    } else {
+      setProducts([]);
+    }
+  }, [selectedCompany]);
 
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const response = await fetchWithAuth(`${API_URL}/retailer/orders/`);
-      if (response.ok) {
-        const data = await response.json();
-        setOrders(Array.isArray(data) ? data : data.results || []);
+      const response = await apiClient.get('/portal/orders/');
+      if (response.data) {
+        const ordersList = Array.isArray(response.data) 
+          ? response.data 
+          : response.data.results || [];
+        setOrders(ordersList);
       }
     } catch (error) {
       console.error('Failed to fetch orders:', error);
@@ -92,399 +133,508 @@ const OrdersPage = () => {
 
   const fetchConnectedCompanies = async () => {
     try {
-      const response = await fetchWithAuth(`${API_URL}/retailer/companies/`);
-      if (response.ok) {
-        const data = await response.json();
-        const connectedCompanies = (Array.isArray(data) ? data : data.results || [])
-          .filter((company: Company) => company.status === 'connected');
-        setCompanies(connectedCompanies);
+      // Get companies from user context
+      const contextResponse = await apiClient.get('/users/me/context/');
+      if (contextResponse.data && contextResponse.data.companies) {
+        const companiesList = contextResponse.data.companies.map((c: { id: string; name: string }) => ({
+          id: c.id,
+          company_id: c.id,
+          company_name: c.name,
+          status: 'connected'
+        }));
+        setCompanies(companiesList);
       }
     } catch (error) {
       console.error('Failed to fetch companies:', error);
     }
   };
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (companyId: string) => {
     try {
-      const response = await fetchWithAuth(`${API_URL}/retailer/products/`);
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(Array.isArray(data) ? data : data.results || []);
+      // Use Portal items API to get products
+      const response = await apiClient.get('/portal/items/');
+      if (response.data) {
+        const productsList = Array.isArray(response.data) 
+          ? response.data 
+          : response.data.results || [];
+        setProducts(productsList);
       }
     } catch (error) {
       console.error('Failed to fetch products:', error);
     }
   };
 
-  const createOrder = async () => {
-    if (!selectedCompany || !selectedProduct || quantity < 1) {
-      alert('Please fill all required fields');
+  const addToCart = (product: Product) => {
+    const existingItem = cart.find(item => item.product.id === product.id);
+    if (existingItem) {
+      setCart(cart.map(item => 
+        item.product.id === product.id 
+          ? { ...item, quantity: item.quantity + 1 }
+          : item
+      ));
+    } else {
+      setCart([...cart, { product, quantity: 1 }]);
+    }
+  };
+
+  const updateCartQuantity = (productId: string, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      removeFromCart(productId);
+    } else {
+      setCart(cart.map(item => 
+        item.product.id === productId 
+          ? { ...item, quantity: newQuantity }
+          : item
+      ));
+    }
+  };
+
+  const removeFromCart = (productId: string) => {
+    setCart(cart.filter(item => item.product.id !== productId));
+  };
+
+  const getCartTotal = () => {
+    return cart.reduce((total, item) => 
+      total + (parseFloat(item.product.price) * item.quantity), 0
+    );
+  };
+
+  const handleCreateOrder = async () => {
+    if (cart.length === 0) {
+      setError('Please add items to your cart');
+      return;
+    }
+
+    if (!selectedCompany) {
+      setError('Please select a manufacturer');
       return;
     }
 
     setCreating(true);
+    setError('');
+    setSuccess('');
+
     try {
-      const response = await fetchWithAuth(`${API_URL}/retailer/orders/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          company_id: parseInt(selectedCompany),
-          product_id: parseInt(selectedProduct),
-          required_qty: quantity,
-          notes: notes.trim() || undefined,
-        }),
+      const orderItems = cart.map(item => ({
+        item_id: item.product.product_id || item.product.id,
+        quantity: item.quantity.toString()
+      }));
+
+      const response = await apiClient.post('/portal/orders/create/', {
+        items: orderItems,
+        notes: notes
       });
 
-      if (response.ok) {
-        setShowCreateModal(false);
-        resetForm();
-        fetchOrders();
-        alert('Order created successfully!');
+      if (response.error) {
+        setError(response.error || 'Failed to create order');
       } else {
-        const errorData = await response.json();
-        alert(`Failed to create order: ${errorData.message || 'Unknown error'}`);
+        setSuccess('Order placed successfully!');
+        setCart([]);
+        setNotes('');
+        setActiveTab('orders');
+        fetchOrders();
       }
     } catch (error) {
-      alert('Failed to create order');
-    }
-    setCreating(false);
-  };
-
-  const resetForm = () => {
-    setSelectedCompany('');
-    setSelectedProduct('');
-    setQuantity(1);
-    setNotes('');
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return <Clock className="h-5 w-5 text-yellow-500" />;
-      case 'confirmed':
-        return <CheckCircle className="h-5 w-5 text-blue-500" />;
-      case 'shipped':
-        return <Package className="h-5 w-5 text-purple-500" />;
-      case 'delivered':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case 'cancelled':
-        return <X className="h-5 w-5 text-red-500" />;
-      default:
-        return null;
+      setError('Failed to create order. Please try again.');
+    } finally {
+      setCreating(false);
     }
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'confirmed':
-        return 'bg-blue-100 text-blue-800';
-      case 'shipped':
-        return 'bg-purple-100 text-purple-800';
-      case 'delivered':
-        return 'bg-green-100 text-green-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
+    switch (status.toUpperCase()) {
+      case 'DELIVERED':
+      case 'COMPLETED':
+        return 'bg-green-900/30 text-green-400';
+      case 'PENDING':
+      case 'DRAFT':
+        return 'bg-yellow-900/30 text-yellow-400';
+      case 'CONFIRMED':
+        return 'bg-blue-900/30 text-blue-400';
+      case 'SHIPPED':
+        return 'bg-purple-900/30 text-purple-400';
+      case 'CANCELLED':
+        return 'bg-red-900/30 text-red-400';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-neutral-700 text-neutral-400';
     }
   };
 
   const filteredOrders = orders.filter(order => {
     if (filter === 'all') return true;
-    return order.status === filter;
+    return order.status.toLowerCase() === filter.toLowerCase();
   });
 
-  const companyProducts = products.filter(product => 
-    selectedCompany ? product.company_id.toString() === selectedCompany : false
-  );
+  const filteredProducts = products.filter(product => {
+    if (!searchQuery) return true;
+    return product.name.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
-  const selectedProductData = products.find(p => p.id.toString() === selectedProduct);
-
-  // Don't render if profile check hasn't completed
   if (!profileChecked) {
     return (
       <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-        <div className="text-white">Checking profile...</div>
+        <div className="text-center">
+          <Loader className="h-8 w-8 animate-spin text-green-500 mx-auto mb-4" />
+          <p className="text-neutral-400">Checking profile...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950">
+    <div className="min-h-screen bg-neutral-950 text-white">
       <RetailerNavbar />
       
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="container mx-auto p-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Orders</h1>
-            <p className="text-gray-600 mt-2">Manage your orders from connected companies</p>
+            <h1 className="text-3xl font-bold">Orders</h1>
+            <p className="text-neutral-400 mt-1">Manage and place orders from your manufacturers</p>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            disabled={companies.length === 0}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <Plus className="h-5 w-5" />
-            Create Order
-          </button>
         </div>
 
-        {companies.length === 0 && (
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-            <p className="text-orange-800">
-              You need to connect to companies before you can create orders.{' '}
-              <a href="/retailer/companies" className="underline font-medium">
-                Connect to companies
-              </a>
-            </p>
+        {/* Error/Success Messages */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/20 border border-red-500 rounded-lg flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+            <p className="text-red-400">{error}</p>
+            <button onClick={() => setError('')} className="ml-auto">
+              <X className="h-5 w-5 text-red-400" />
+            </button>
+          </div>
+        )}
+        
+        {success && (
+          <div className="mb-6 p-4 bg-green-500/20 border border-green-500 rounded-lg flex items-center gap-3">
+            <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+            <p className="text-green-400">{success}</p>
+            <button onClick={() => setSuccess('')} className="ml-auto">
+              <X className="h-5 w-5 text-green-400" />
+            </button>
           </div>
         )}
 
-        {/* Filters */}
-        <div className="bg-neutral-900 rounded-lg shadow border border-neutral-800 p-6">
-          <div className="flex items-center gap-4">
-            <span className="font-medium text-neutral-300">Filter by status:</span>
-            <div className="flex gap-2">
-              {[
-                { key: 'all', label: 'All Orders' },
-                { key: 'pending', label: 'Pending' },
-                { key: 'confirmed', label: 'Confirmed' },
-                { key: 'shipped', label: 'Shipped' },
-                { key: 'delivered', label: 'Delivered' },
-                { key: 'cancelled', label: 'Cancelled' },
-              ].map(({ key, label }) => (
+        {/* Tab Navigation */}
+        <div className="bg-neutral-900 rounded-lg border border-neutral-800 mb-6">
+          <div className="flex border-b border-neutral-800">
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
+                activeTab === 'orders'
+                  ? 'text-green-400 border-b-2 border-green-400'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              <Package className="h-5 w-5" />
+              My Orders
+            </button>
+            <button
+              onClick={() => setActiveTab('create')}
+              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
+                activeTab === 'create'
+                  ? 'text-green-400 border-b-2 border-green-400'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              <Plus className="h-5 w-5" />
+              Place Order
+            </button>
+          </div>
+        </div>
+
+        {/* My Orders Tab */}
+        {activeTab === 'orders' && (
+          <div className="bg-neutral-900 rounded-lg border border-neutral-800">
+            {/* Filter */}
+            <div className="p-4 border-b border-neutral-800 flex flex-wrap gap-4">
+              <div className="flex items-center gap-2">
+                <Filter className="h-5 w-5 text-neutral-400" />
+                <span className="text-neutral-400">Filter:</span>
+              </div>
+              {['all', 'pending', 'confirmed', 'shipped', 'delivered', 'cancelled'].map(status => (
                 <button
-                  key={key}
-                  onClick={() => setFilter(key)}
-                  className={`px-3 py-2 text-sm rounded-lg transition-colors ${
-                    filter === key
-                      ? 'bg-blue-900/30 text-blue-400 border border-blue-700'
-                      : 'text-neutral-400 hover:bg-neutral-800'
+                  key={status}
+                  onClick={() => setFilter(status)}
+                  className={`px-3 py-1 rounded-full text-sm capitalize transition-colors ${
+                    filter === status
+                      ? 'bg-green-600 text-white'
+                      : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'
                   }`}
                 >
-                  {label}
+                  {status}
                 </button>
               ))}
             </div>
-          </div>
-        </div>
 
-        {/* Orders List */}
-        <div className="bg-neutral-900 rounded-lg shadow border border-neutral-800">
-          <div className="px-6 py-4 border-b border-neutral-800">
-            <h2 className="text-xl font-semibold text-white">
-              {filteredOrders.length} Orders {filter !== 'all' && `(${filter})`}
-            </h2>
-          </div>
-
-          <div className="p-6">
-            {loading ? (
-              <div className="flex justify-center items-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-              </div>
-            ) : filteredOrders.length === 0 ? (
-              <div className="text-center py-12">
-                <Package className="h-16 w-16 text-neutral-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-white mb-2">
-                  {filter === 'all' ? 'No orders yet' : `No ${filter} orders`}
-                </h3>
-                <p className="text-neutral-400 mb-4">
-                  {companies.length === 0 
-                    ? 'Connect to companies and start ordering products'
-                    : 'Create your first order to get started'
-                  }
-                </p>
-                {companies.length > 0 && (
+            {/* Orders List */}
+            <div className="p-6">
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader className="h-8 w-8 animate-spin text-neutral-400" />
+                </div>
+              ) : filteredOrders.length === 0 ? (
+                <div className="text-center py-12">
+                  <Package className="h-16 w-16 text-neutral-600 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">No orders found</h3>
+                  <p className="text-neutral-400 mb-4">
+                    {filter === 'all' 
+                      ? "You haven't placed any orders yet" 
+                      : `No ${filter} orders found`}
+                  </p>
                   <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    onClick={() => setActiveTab('create')}
+                    className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
                   >
-                    Create Order
+                    Place Your First Order
                   </button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-neutral-700">
+                        <th className="text-left py-3 px-4 font-medium text-neutral-400">Order ID</th>
+                        <th className="text-left py-3 px-4 font-medium text-neutral-400">Manufacturer</th>
+                        <th className="text-left py-3 px-4 font-medium text-neutral-400">Date</th>
+                        <th className="text-left py-3 px-4 font-medium text-neutral-400">Items</th>
+                        <th className="text-left py-3 px-4 font-medium text-neutral-400">Total</th>
+                        <th className="text-left py-3 px-4 font-medium text-neutral-400">Status</th>
+                        <th className="text-left py-3 px-4 font-medium text-neutral-400">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredOrders.map(order => (
+                        <tr key={order.id} className="border-b border-neutral-700/50 hover:bg-neutral-800/50">
+                          <td className="py-3 px-4 font-medium">{order.order_number || `#${order.id}`}</td>
+                          <td className="py-3 px-4">{order.company_name}</td>
+                          <td className="py-3 px-4">{new Date(order.order_date).toLocaleDateString()}</td>
+                          <td className="py-3 px-4">{order.item_count} items</td>
+                          <td className="py-3 px-4 font-semibold">₹{parseFloat(order.total_amount || '0').toLocaleString()}</td>
+                          <td className="py-3 px-4">
+                            <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(order.status)}`}>
+                              {order.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <button className="p-2 hover:bg-neutral-700 rounded-lg transition-colors">
+                              <Eye className="h-4 w-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Place Order Tab */}
+        {activeTab === 'create' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Product Selection */}
+            <div className="lg:col-span-2 bg-neutral-900 rounded-lg border border-neutral-800">
+              {/* Manufacturer Selection */}
+              <div className="p-4 border-b border-neutral-800">
+                <label className="block text-sm text-neutral-400 mb-2">Select Manufacturer</label>
+                <select
+                  value={selectedCompany}
+                  onChange={(e) => setSelectedCompany(e.target.value)}
+                  className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-white"
+                >
+                  <option value="">Choose a manufacturer...</option>
+                  {companies.map(company => (
+                    <option key={company.id} value={company.company_id || company.id}>
+                      {company.company_name}
+                    </option>
+                  ))}
+                </select>
+                {companies.length === 0 && (
+                  <p className="text-sm text-yellow-400 mt-2">
+                    No connected manufacturers.{' '}
+                    <button 
+                      onClick={() => router.push('/retailer/companies')}
+                      className="underline hover:text-yellow-300"
+                    >
+                      Connect with manufacturers
+                    </button>
+                  </p>
                 )}
               </div>
-            ) : (
-              <div className="space-y-4">
-                {filteredOrders.map(order => (
-                  <div key={order.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-semibold text-gray-900">#{order.order_id}</h3>
-                          <div className="flex items-center gap-1">
-                            {getStatusIcon(order.status)}
-                            <span className={`text-sm px-2 py-1 rounded-full ${getStatusColor(order.status)}`}>
-                              {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+
+              {/* Product Search */}
+              {selectedCompany && (
+                <div className="p-4 border-b border-neutral-800">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search products..."
+                      className="w-full pl-10 pr-4 py-3 bg-neutral-800 border border-neutral-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-white placeholder-neutral-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Products Grid */}
+              <div className="p-4">
+                {!selectedCompany ? (
+                  <div className="text-center py-12">
+                    <Building2 className="h-16 w-16 text-neutral-600 mx-auto mb-4" />
+                    <p className="text-neutral-400">Select a manufacturer to view products</p>
+                  </div>
+                ) : filteredProducts.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Package className="h-16 w-16 text-neutral-600 mx-auto mb-4" />
+                    <p className="text-neutral-400">
+                      {searchQuery ? 'No products match your search' : 'No products available'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {filteredProducts.map(product => (
+                      <div 
+                        key={product.id} 
+                        className="bg-neutral-800 rounded-lg p-4 flex items-center justify-between"
+                      >
+                        <div className="flex-1">
+                          <h4 className="font-semibold">{product.name}</h4>
+                          {product.category_name && (
+                            <p className="text-sm text-neutral-400">{product.category_name}</p>
+                          )}
+                          <div className="flex items-center gap-4 mt-2">
+                            <span className="text-lg font-bold text-green-400">
+                              ₹{parseFloat(product.price).toLocaleString()}
+                            </span>
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              parseFloat(product.available_quantity) > 10 
+                                ? 'bg-green-900/30 text-green-400' 
+                                : parseFloat(product.available_quantity) > 0 
+                                  ? 'bg-yellow-900/30 text-yellow-400'
+                                  : 'bg-red-900/30 text-red-400'
+                            }`}>
+                              {parseFloat(product.available_quantity)} {product.unit}
                             </span>
                           </div>
                         </div>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
-                          <div>
-                            <span className="font-medium">Company:</span>
-                            <div className="flex items-center gap-1 mt-1">
-                              <Building2 className="h-4 w-4" />
-                              <span>{order.company_name}</span>
-                            </div>
-                          </div>
-                          
-                          <div>
-                            <span className="font-medium">Product:</span>
-                            <p className="mt-1">{order.product_name}</p>
-                          </div>
-                          
-                          <div>
-                            <span className="font-medium">Quantity:</span>
-                            <p className="mt-1">{order.required_qty} units</p>
-                          </div>
-                          
-                          <div>
-                            <span className="font-medium">Date:</span>
-                            <p className="mt-1">{new Date(order.order_date).toLocaleDateString()}</p>
-                          </div>
-                        </div>
-
-                        {order.notes && (
-                          <div className="mt-2 text-sm text-gray-600">
-                            <span className="font-medium">Notes:</span> {order.notes}
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="text-right ml-4">
-                        <p className="text-xl font-bold text-gray-900">${order.total_amount?.toFixed(2) || '0.00'}</p>
-                        <button className="mt-2 text-blue-600 hover:text-blue-700 text-sm font-medium">
-                          View Details
+                        <button
+                          onClick={() => addToCart(product)}
+                          disabled={parseFloat(product.available_quantity) <= 0}
+                          className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-neutral-700 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                        >
+                          <Plus className="h-5 w-5" />
                         </button>
                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Create Order Modal */}
-        {showCreateModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Create New Order</h3>
-                <button
-                  onClick={() => {
-                    setShowCreateModal(false);
-                    resetForm();
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Company *
-                  </label>
-                  <select
-                    value={selectedCompany}
-                    onChange={(e) => {
-                      setSelectedCompany(e.target.value);
-                      setSelectedProduct(''); // Reset product when company changes
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">Select a company...</option>
-                    {companies.map(company => (
-                      <option key={company.id} value={company.id}>
-                        {company.name}
-                      </option>
                     ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Product *
-                  </label>
-                  <select
-                    value={selectedProduct}
-                    onChange={(e) => setSelectedProduct(e.target.value)}
-                    disabled={!selectedCompany}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
-                  >
-                    <option value="">Select a product...</option>
-                    {companyProducts.map(product => (
-                      <option key={product.id} value={product.id}>
-                        {product.name} - ${product.price} (Stock: {product.stock})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Quantity *
-                  </label>
-                  <input
-                    type="number"
-                    value={quantity}
-                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                    min="1"
-                    max={selectedProductData?.stock || 999}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  {selectedProductData && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      Available: {selectedProductData.stock} units
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Notes (Optional)
-                  </label>
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Any special instructions..."
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-
-                {selectedProductData && (
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-sm font-medium text-gray-700">Order Summary:</p>
-                    <p className="text-sm text-gray-600">
-                      {quantity} × ${selectedProductData.price} = <span className="font-medium">${(quantity * selectedProductData.price).toFixed(2)}</span>
-                    </p>
                   </div>
                 )}
+              </div>
+            </div>
 
-                <div className="flex gap-3 pt-4">
-                  <button
-                    onClick={() => {
-                      setShowCreateModal(false);
-                      resetForm();
-                    }}
-                    className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={createOrder}
-                    disabled={creating || !selectedCompany || !selectedProduct || quantity < 1}
-                    className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {creating ? 'Creating...' : 'Create Order'}
-                  </button>
-                </div>
+            {/* Cart */}
+            <div className="bg-neutral-900 rounded-lg border border-neutral-800 h-fit sticky top-6">
+              <div className="p-4 border-b border-neutral-800 flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 text-green-400" />
+                <h3 className="font-semibold">Your Order</h3>
+                {cart.length > 0 && (
+                  <span className="ml-auto bg-green-600 text-white text-xs px-2 py-1 rounded-full">
+                    {cart.length}
+                  </span>
+                )}
+              </div>
+
+              <div className="p-4">
+                {cart.length === 0 ? (
+                  <div className="text-center py-8">
+                    <ShoppingCart className="h-12 w-12 text-neutral-600 mx-auto mb-3" />
+                    <p className="text-neutral-400">Your cart is empty</p>
+                    <p className="text-sm text-neutral-500">Add products to place an order</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {cart.map(item => (
+                      <div key={item.product.id} className="bg-neutral-800 rounded-lg p-3">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h4 className="font-medium text-sm">{item.product.name}</h4>
+                            <p className="text-xs text-neutral-400">
+                              ₹{parseFloat(item.product.price).toLocaleString()} / {item.product.unit}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => removeFromCart(item.product.id)}
+                            className="text-red-400 hover:text-red-300"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => updateCartQuantity(item.product.id, item.quantity - 1)}
+                              className="p-1 bg-neutral-700 hover:bg-neutral-600 rounded"
+                            >
+                              <Minus className="h-4 w-4" />
+                            </button>
+                            <span className="w-12 text-center">{item.quantity}</span>
+                            <button
+                              onClick={() => updateCartQuantity(item.product.id, item.quantity + 1)}
+                              className="p-1 bg-neutral-700 hover:bg-neutral-600 rounded"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                          </div>
+                          <span className="font-semibold">
+                            ₹{(parseFloat(item.product.price) * item.quantity).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Notes */}
+                    <div>
+                      <label className="block text-sm text-neutral-400 mb-2">Order Notes</label>
+                      <textarea
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="Special instructions..."
+                        rows={2}
+                        className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-white placeholder-neutral-500 text-sm resize-none"
+                      />
+                    </div>
+
+                    {/* Total */}
+                    <div className="border-t border-neutral-700 pt-4">
+                      <div className="flex items-center justify-between text-lg font-bold">
+                        <span>Total</span>
+                        <span className="text-green-400">₹{getCartTotal().toLocaleString()}</span>
+                      </div>
+                    </div>
+
+                    {/* Place Order Button */}
+                    <button
+                      onClick={handleCreateOrder}
+                      disabled={creating || cart.length === 0}
+                      className="w-full py-3 bg-green-600 hover:bg-green-700 disabled:bg-neutral-700 disabled:cursor-not-allowed text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+                    >
+                      {creating ? (
+                        <>
+                          <Loader className="h-5 w-5 animate-spin" />
+                          Placing Order...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-5 w-5" />
+                          Place Order
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { API_URL, refreshAccessToken, getAuthToken } from '@/utils/auth_fn';
+import { apiClient } from '@/utils/api';
 import { useStockData } from '@/components/manufacturer/stockcount/data';
 import SidePanel from '@/components/manufacturer/stockcount/SidePanel';
 import NavigationBar from '@/components/manufacturer/stockcount/NavigationBar';
@@ -95,24 +95,21 @@ export default function StockCountPage() {
 
   // Fetch categories and companies for dropdowns
   useEffect(() => {
-  const token = localStorage.getItem("access_token");
-  if (!token) return;
-  fetch(`${API_URL}/categories/`, {
-    headers: { Authorization: `Bearer ${token}` }
-  })
-    .then(res => res.json())
-    .then(data => {
-      // If paginated, use data.results, else use data
-      setCategories(Array.isArray(data) ? data : (data.results || []));
-    })
-    .catch(() => setCategories([]));
-  fetch(`${API_URL}/company/`, {
-    headers: { Authorization: `Bearer ${token}` }
-  })
-    .then(res => res.json())
-    .then(data => setCompanies(Array.isArray(data) ? data : (data.results || [])))
-    .catch(() => setCompanies([]));
-}, []);
+    const fetchData = async () => {
+      const categoriesRes = await apiClient.get<any>("/categories/");
+      if (categoriesRes.data) {
+        const data = categoriesRes.data;
+        setCategories(Array.isArray(data) ? data : (data.results || []));
+      }
+      
+      const companiesRes = await apiClient.get<any>("/company/");
+      if (companiesRes.data) {
+        const data = companiesRes.data;
+        setCompanies(Array.isArray(data) ? data : (data.results || []));
+      }
+    };
+    fetchData();
+  }, []);
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -122,96 +119,32 @@ export default function StockCountPage() {
     e.preventDefault();
     setSubmitError("");
     setSubmitSuccess("");
-    let token = await getAuthToken();
-    if (!token) {
-      setSubmitError("Not authenticated");
-      return;
-    }
+    
     const companyId = localStorage.getItem("company_id");
     if (!companyId) {
       setSubmitError("No company selected");
       return;
     }
+    
     try {
-      const res = await fetch(`${API_URL}/products/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: form.name,
-          company: Number(companyId), // always from localStorage
-          category: form.category ? Number(form.category) : null,
-          available_quantity: Number(form.available_quantity),
-          unit: form.unit,
-          total_shipped: Number(form.total_shipped),
-          total_required_quantity: Number(form.total_required_quantity),
-          price: Number(form.price),
-          hsn_code: form.hsn_code,
-          cgst_rate: Number(form.cgst_rate),
-          sgst_rate: Number(form.sgst_rate),
-          igst_rate: Number(form.igst_rate),
-          cess_rate: Number(form.cess_rate),
-          status: form.status,
-        }),
+      const response = await apiClient.post("/products/", {
+        name: form.name,
+        company: Number(companyId),
+        category: form.category ? Number(form.category) : null,
+        available_quantity: Number(form.available_quantity),
+        unit: form.unit,
+        total_shipped: Number(form.total_shipped),
+        total_required_quantity: Number(form.total_required_quantity),
+        price: Number(form.price),
+        hsn_code: form.hsn_code,
+        cgst_rate: Number(form.cgst_rate),
+        sgst_rate: Number(form.sgst_rate),
+        igst_rate: Number(form.igst_rate),
+        cess_rate: Number(form.cess_rate),
+        status: form.status,
       });
-      // If unauthorized, try to refresh and retry once
-      if (res.status === 401) {
-        token = await refreshAccessToken();
-        if (!token) {
-          setSubmitError("Session expired. Please log in again.");
-          return;
-        }
-        const retryRes = await fetch(`${API_URL}/products/`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            name: form.name,
-            company: Number(companyId),
-            category: form.category ? Number(form.category) : null,
-            available_quantity: Number(form.available_quantity),
-            unit: form.unit,
-            total_shipped: Number(form.total_shipped),
-            total_required_quantity: Number(form.total_required_quantity),
-            price: Number(form.price),
-            hsn_code: form.hsn_code,
-            cgst_rate: Number(form.cgst_rate),
-            sgst_rate: Number(form.sgst_rate),
-            igst_rate: Number(form.igst_rate),
-            cess_rate: Number(form.cess_rate),
-            status: form.status,
-          }),
-        });
-        if (retryRes.ok) {
-          setSubmitSuccess("Product added successfully!");
-          setForm({
-            name: "",
-            category: "",
-            available_quantity: "",
-            price: "",
-            company: "",
-            unit: "",
-            total_shipped: "",
-            total_required_quantity: "",
-            hsn_code: "",
-            cgst_rate: "0",
-            sgst_rate: "0",
-            igst_rate: "0",
-            cess_rate: "0",
-            status: "sufficient",
-          });
-          setShowModal(false);
-        } else {
-          const data = await retryRes.json();
-          setSubmitError(data.error || "Failed to add product.");
-        }
-        return;
-      }
-      if (res.ok) {
+
+      if (!response.error) {
         setSubmitSuccess("Product added successfully!");
         setForm({
           name: "",
@@ -231,8 +164,7 @@ export default function StockCountPage() {
         });
         setShowModal(false);
       } else {
-        const data = await res.json();
-        setSubmitError(data.error || "Failed to add product.");
+        setSubmitError(response.error || "Failed to add product.");
       }
     } catch {
       setSubmitError("Failed to add product.");
@@ -572,7 +504,6 @@ return (
               e.preventDefault();
               setCategoryError("");
               setCategoryLoading(true);
-              const token = localStorage.getItem("access_token");
               const companyId = localStorage.getItem("company_id");
               if (!companyId) {
                 setCategoryError("No company selected");
@@ -580,25 +511,16 @@ return (
                 return;
               }
               try {
-                const res = await fetch(`${API_URL}/categories/`, {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                  },
-                  body: JSON.stringify({
-                    name: categoryForm.name,
-                    company: Number(companyId),
-                  }),
+                const response = await apiClient.post<any>("/categories/", {
+                  name: categoryForm.name,
+                  company: Number(companyId),
                 });
-                if (res.ok) {
-                  const newCat = await res.json();
-                  setCategories((prev) => [...prev, newCat]);
+                if (!response.error && response.data) {
+                  setCategories((prev) => [...prev, response.data]);
                   setShowCategoryModal(false);
                   setCategoryForm({ name: "" });
                 } else {
-                  const data = await res.json();
-                  setCategoryError(data.error || "Failed to add category.");
+                  setCategoryError(response.error || "Failed to add category.");
                 }
               } catch {
                 setCategoryError("Failed to add category.");

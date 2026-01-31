@@ -1,5 +1,4 @@
-import { authStorage } from '../../../utils/localStorage';
-import { API_URL } from '../../../utils/auth_fn';
+import { apiClient } from '@/utils/api';
 
 interface Product {
   id: number;
@@ -28,22 +27,15 @@ export const fetchStockFromAPI = async () => {
       console.log("Server-side rendering detected, skipping API call");
       return;
     }
-    
-    const token = authStorage.getAccessToken();
-    if (!token) throw new Error("Authentication token not found. Please log in again.");
 
-    const response = await fetch(`${API_URL}/retailer/products/`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
+    const response = await apiClient.get<any[]>("/portal/items/");
 
-    if (!response.ok) throw new Error(`Stock API request failed with status ${response.status}`);
+    if (response.error) {
+      throw new Error(response.error);
+    }
 
-    const data = await response.json();
-
-    if (!Array.isArray(data)) throw new Error("Invalid response format: expected an array");
+    const data = response.data;
+    if (!data || !Array.isArray(data)) throw new Error("Invalid response format: expected an array");
 
     PRODUCTS = data.map((stockItem: any) => ({
       id: stockItem.product_id,
@@ -67,22 +59,15 @@ export const fetchOrdersFromAPI = async () => {
       console.log("Server-side rendering detected, skipping API call");
       return;
     }
-    
-    const token = authStorage.getAccessToken();
-    if (!token) throw new Error("Authentication token not found. Please log in again.");
 
-    const response = await fetch(`${API_URL}/orders/`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
+    const response = await apiClient.get<{ results: any[] }>("/orders/");
 
-    if (!response.ok) throw new Error(`Orders API request failed with status ${response.status}`);
+    if (response.error) {
+      throw new Error(response.error);
+    }
 
-    const data = await response.json();
-
-    if (!data.results) throw new Error("Invalid response format: 'results' property is missing");
+    const data = response.data;
+    if (!data?.results) throw new Error("Invalid response format: 'results' property is missing");
 
     ORDERS = data.results.map((order: any) => {
       const product = PRODUCTS.find((p) => p.id === order.product);

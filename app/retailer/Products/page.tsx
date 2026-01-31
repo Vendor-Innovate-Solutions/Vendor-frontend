@@ -38,15 +38,25 @@ const ProductsPage = () => {
 
   const categories = ['Electronics', 'Clothing', 'Food', 'Books', 'Home', 'Sports'];
 
-  // Check if retailer profile exists
+  // Check if retailer profile exists using context API
   useEffect(() => {
     const checkProfile = async () => {
       try {
-        const response = await fetchWithAuth(`${API_URL}/retailer/profile/`);
-        if (!response.ok) {
+        const contextResponse = await fetchWithAuth(`${API_URL}/users/me/context/`);
+        
+        if (contextResponse.ok) {
+          const context = await contextResponse.json();
+          
+          // If is_portal_user is false, profile not complete - redirect to setup
+          if (!context.is_portal_user) {
+            router.replace('/retailer/setup');
+            return;
+          }
+        } else {
           router.replace('/retailer/setup');
           return;
         }
+        
         setProfileChecked(true);
       } catch (error) {
         router.replace('/retailer/setup');
@@ -64,12 +74,17 @@ const ProductsPage = () => {
 
   const fetchConnectedCompanies = async () => {
     try {
-      const response = await fetchWithAuth(`${API_URL}/retailer/companies/`);
+      const response = await fetchWithAuth(`${API_URL}/users/me/context/`);
       if (response.ok) {
-        const data = await response.json();
-        const connectedCompanies = (Array.isArray(data) ? data : data.results || [])
-          .filter((company: Company) => company.status === 'connected');
-        setCompanies(connectedCompanies);
+        const context = await response.json();
+        if (context.companies) {
+          const connectedCompanies = context.companies.map((c: { id: string; name: string }) => ({
+            id: c.id,
+            company_name: c.name,
+            status: 'connected'
+          }));
+          setCompanies(connectedCompanies);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch companies:', error);
@@ -79,8 +94,8 @@ const ProductsPage = () => {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      // Fetch products from all connected companies
-      const response = await fetchWithAuth(`${API_URL}/retailer/products/`);
+      // Fetch products using Portal items API
+      const response = await fetchWithAuth(`${API_URL}/portal/items/`);
       if (response.ok) {
         const data = await response.json();
         setProducts(Array.isArray(data) ? data : data.results || []);

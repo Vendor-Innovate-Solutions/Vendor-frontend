@@ -31,15 +31,26 @@ const ProfilePage = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [profileChecked, setProfileChecked] = useState(false);
 
-  // Check if retailer profile exists
+  // Check if retailer profile exists using context API
+  // Check if retailer profile exists using context API
   useEffect(() => {
     const checkProfile = async () => {
       try {
-        const response = await fetchWithAuth(`${API_URL}/retailer/profile/`);
-        if (!response.ok) {
+        const contextResponse = await fetchWithAuth(`${API_URL}/users/me/context/`);
+        
+        if (contextResponse.ok) {
+          const context = await contextResponse.json();
+          
+          // If is_portal_user is false, profile not complete - redirect to setup
+          if (!context.is_portal_user) {
+            router.replace('/retailer/setup');
+            return;
+          }
+        } else {
           router.replace('/retailer/setup');
           return;
         }
+        
         setProfileChecked(true);
       } catch (error) {
         router.replace('/retailer/setup');
@@ -57,7 +68,7 @@ const ProfilePage = () => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const response = await fetchWithAuth(`${API_URL}/retailer/profile/`);
+      const response = await fetchWithAuth(`${API_URL}/users/me/`);
       if (response.ok) {
         const data = await response.json();
         setProfile(data);
@@ -78,12 +89,16 @@ const ProfilePage = () => {
     try {
       setSaving(true);
       setError(null);
-      const response = await fetchWithAuth(`${API_URL}/retailer/profile/`, {
-        method: 'PUT',
+      const response = await fetchWithAuth(`${API_URL}/users/me/`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(profile),
+        body: JSON.stringify({
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          phone: profile.phone
+        }),
       });
 
       if (response.ok) {

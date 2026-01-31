@@ -2,6 +2,10 @@
 
 ## Table of Contents
 - [Authentication](#authentication)
+- [User APIs](#user-apis)
+- [Onboarding & Role Selection](#onboarding--role-selection)
+- [Post-Login Routing](#post-login-routing)
+- [Authorization & Permissions](#authorization--permissions)
 - [Common Response Formats](#common-response-formats)
 - [Company Management APIs](#company-management-apis)
 - [Accounting APIs](#accounting-apis)
@@ -76,6 +80,424 @@ Content-Type: application/json
 
 ---
 
+## User APIs
+
+**Base Path:** `/api/users/`
+
+All user endpoints are **[Public]** unless otherwise specified.
+
+### User Registration
+**POST** `/api/users/register/`  
+**[Public]**
+
+Create a new user account with email, phone, and full name. **Important:** Phone number must be verified before registration using the Send/Verify OTP endpoints.
+
+**Request:**
+```json
+{
+  "email": "user@example.com",
+  "phone": "+1234567890",
+  "full_name": "John Doe",
+  "password": "securepassword123"
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "user": {
+    "id": 1,
+    "email": "user@example.com",
+    "phone": "+1234567890",
+    "full_name": "John Doe",
+    "phone_verified": true,
+    "created_at": "2026-01-27T08:50:00Z",
+    "updated_at": "2026-01-27T08:50:00Z"
+  },
+  "access": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+  "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+  "message": "Registration successful. Your phone number is verified."
+}
+```
+
+**Error Response (400 Bad Request - Phone Not Verified):**
+```json
+{
+  "error": "Phone number must be verified before registration.",
+  "detail": "Please verify your phone number using the OTP sent to your phone."
+}
+```
+
+**Error Response (400 Bad Request - Validation):**
+```json
+{
+  "email": ["This email is already registered."],
+  "phone": ["This phone number is already registered."]
+}
+```
+
+---
+
+### Send Phone OTP
+**POST** `/api/users/send-phone-otp/`  
+**[Public]**
+
+Send a one-time password (OTP) to the user's phone number via SMS using Twilio. This should be called BEFORE registration to verify the phone number.
+
+**Request:**
+```json
+{
+  "phone": "+1234567890"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "message": "OTP sent successfully",
+  "phone": "+1234567890",
+  "expires_in_minutes": 10
+}
+```
+
+**Error Response (400 Bad Request - Already Registered):**
+```json
+{
+  "error": "This phone number is already registered. Please login instead."
+}
+```
+
+**Error Response (400 Bad Request):**
+```json
+{
+  "error": "Phone number must include country code (e.g., +1)"
+}
+```
+
+---
+
+### Verify Phone OTP
+**POST** `/api/users/verify-phone-otp/`  
+**[Public]**
+
+Verify the OTP sent to the user's phone number. After successful verification, the user can proceed with registration.
+
+**Request:**
+```json
+{
+  "phone": "+1234567890",
+  "otp": "123456"
+}
+```
+
+**Response (200 OK - Pre-Registration):**
+```json
+{
+  "message": "Phone number verified successfully. You can now proceed with registration.",
+  "phone_verified": true,
+  "phone": "+1234567890"
+}
+```
+
+**Error Responses:**
+
+- **OTP Expired (400 Bad Request):**
+```json
+{
+  "error": "OTP has expired. Please request a new one."
+}
+```
+
+- **Invalid OTP (400 Bad Request):**
+```json
+{
+  "error": "Invalid OTP. Please try again."
+}
+```
+
+- **Max Attempts Exceeded (400 Bad Request):**
+```json
+{
+  "error": "Maximum OTP attempts exceeded. Please request a new OTP."
+}
+```
+
+- **No OTP Found (404 Not Found):**
+```json
+{
+  "error": "No OTP found for this phone number. Please request a new one."
+}
+```
+
+---
+
+## Onboarding & Role Selection
+
+The user onboarding flow follows these steps:
+1. **Sign up** - Create user account (POST /auth/signup)
+2. **Select Role** - Choose user's primary business role (POST /auth/select-role)
+3. **Create Company** - (MANUFACTURER only) Create company with defaults (POST /company/onboarding/create-company/)
+4. **Add Context** - Fetch user context to determine next steps (GET /users/me/context)
+
+### Select User Role
+**POST** `/api/users/select-role/`  
+**[Protected]** - Requires authentication
+
+User selects their primary business role during onboarding. This determines available features and workflows.
+
+**Request:**
+```json
+{
+  "role": "MANUFACTURER"
+}
+```
+
+**Available Roles:**
+- `MANUFACTURER` - Manufacturing business owner
+- `RETAILER` - Retail business owner
+- `SUPPLIER` - Supplier/vendor
+- `DISTRIBUTOR` - Distributor
+- `LOGISTICS` - Logistics provider
+- `SERVICE_PROVIDER` - Service provider
+
+**Response (200 OK):**
+```json
+{
+  "message": "Role selected successfully",
+  "role": "MANUFACTURER",
+  "user": {
+    "id": 1,
+    "email": "user@example.com",
+    "phone": "+1234567890",
+    "full_name": "John Doe",
+    "phone_verified": true,
+    "created_at": "2026-01-27T08:50:00Z",
+    "updated_at": "2026-01-27T08:50:00Z"
+  }
+}
+```
+
+---
+
+### Get User Context
+**GET** `/api/users/me/context/`  
+**[Protected]** - Requires authentication
+
+Fetch complete user context after login. This endpoint returns role, company information, and determines post-login routing.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "user_id": "123",
+  "email": "user@example.com",
+  "full_name": "John Doe",
+  "role": "MANUFACTURER",
+  "role_selected": true,
+  "has_company": true,
+  "companies": [
+    {
+      "id": "company-uuid-1",
+      "name": "ABC Manufacturing",
+      "code": "ABC001",
+      "role": "OWNER",
+      "is_default": true
+    },
+    {
+      "id": "company-uuid-2",
+      "name": "XYZ Industries",
+      "code": "XYZ001",
+      "role": "MANAGER",
+      "is_default": false
+    }
+  ],
+  "default_company": {
+    "id": "company-uuid-1",
+    "name": "ABC Manufacturing",
+    "code": "ABC001",
+    "role": "OWNER"
+  },
+  "default_company_id": "company-uuid-1",
+  "is_internal_user": true,
+  "is_portal_user": false
+}
+```
+
+---
+
+## Post-Login Routing
+
+After successful login, the backend enforces server-side routing based on user state. The middleware checks user state and returns redirect information if needed.
+
+### Routing Rules
+
+The backend checks these conditions in order:
+
+**Rule 1: Role Not Selected**
+```
+If: user.selected_role == NULL
+Then: Redirect to /select-role
+```
+
+**Rule 2: Manufacturer Without Company**
+```
+If: user.selected_role == 'MANUFACTURER' AND user has no company
+Then: Redirect to /onboarding/company
+```
+
+**Rule 3: Multiple Companies, No Active Company**
+```
+If: user.company_count > 1 AND user.active_company == NULL
+Then: Redirect to /select-company
+```
+
+### Redirect Response Format
+
+When the server detects a required redirect, it returns HTTP 307 with redirect information:
+
+```json
+{
+  "error": "REDIRECT_REQUIRED",
+  "status_code": 307,
+  "code": "ROLE_NOT_SELECTED",
+  "message": "Please select your role to continue",
+  "redirect_to": "/select-role"
+}
+```
+
+**Possible codes:**
+- `ROLE_NOT_SELECTED` - User hasn't selected role yet
+- `NO_COMPANY` - MANUFACTURER user has no company
+- `SELECT_COMPANY` - User has multiple companies, must select one
+
+### Frontend Implementation
+
+1. **After Login:** Call `GET /users/me/context/` to get user context
+2. **Check Context:** Inspect `role_selected` and `has_company` flags
+3. **Redirect as Needed:** If redirects are indicated, navigate user to appropriate screen
+4. **Exempt Endpoints:** These endpoints don't trigger redirects:
+   - POST /auth/select-role/
+   - GET /users/me/context/
+   - POST /company/onboarding/create-company/
+   - Any endpoint in /invites/ or /partner/
+
+---
+
+## Authorization & Permissions
+
+### Company Access Control
+
+Every API endpoint that operates on a company resource requires:
+1. User must be authenticated
+2. User must have an active `CompanyUser` record for that company
+3. User's `CompanyUser.role` must have permission for the action
+
+### Company User Roles
+
+Internal roles (for company employees):
+- `OWNER` - Full access, company management
+- `ADMIN` - Administrative access, can manage users
+- `MANAGER` - Management access
+- `ACCOUNTANT` - Accounting operations
+- `STOCK_KEEPER` - Inventory operations
+- `SALES` - Sales operations
+- `VIEWER` - Read-only access
+
+External roles (for partners):
+- `EXTERNAL` - Limited access as external partner
+
+### Authorization Errors
+
+**No Company Access (403 Forbidden):**
+```json
+{
+  "error": "You do not have access to this company"
+}
+```
+
+**Insufficient Role Permissions (403 Forbidden):**
+```json
+{
+  "error": "You do not have permission to access this resource",
+  "detail": "This action requires one of these roles: ADMIN, OWNER"
+}
+```
+
+---
+
+### Get User Details
+**GET** `/api/users/me/`  
+**[Protected]** - Requires authentication
+
+Get the authenticated user's profile information.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "id": 1,
+  "email": "user@example.com",
+  "phone": "+1234567890",
+  "full_name": "John Doe",
+  "phone_verified": true,
+  "created_at": "2026-01-27T08:50:00Z",
+  "updated_at": "2026-01-27T08:50:00Z"
+}
+```
+
+---
+
+### User Registration Flow
+
+**Step 1: Send OTP**
+```
+POST /api/users/send-phone-otp/
+```
+- User provides phone number
+- OTP is sent via SMS
+- OTP is valid for 10 minutes
+- **Note:** This happens BEFORE registration
+
+**Step 2: Verify OTP**
+```
+POST /api/users/verify-phone-otp/
+```
+- User provides the OTP received via SMS
+- Maximum 3 attempts allowed per OTP
+- On successful verification, phone is marked as verified
+- User can now proceed to registration
+
+**Step 3: Register User**
+```
+POST /api/users/register/
+```
+- User provides email, phone (same verified phone), password, and full name
+- System checks if phone was verified in Step 2
+- Returns user data and JWT tokens
+- `phone_verified` is set to `true` automatically
+
+---
+
+### Twilio Configuration
+
+The backend uses Twilio to send OTP via SMS. Configuration should be set via environment variables:
+
+```env
+TWILIO_ACCOUNT_SID=your_account_sid
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_PHONE_NUMBER=your_phone_number
+```
+
+---
+
 ## Common Response Formats
 
 ### Success Response (Single Object)
@@ -118,6 +540,490 @@ Content-Type: application/json
 ## Company Management APIs
 
 **Base Path:** `/api/company/`
+
+### Manufacturer Company Creation (Onboarding)
+
+#### Create Company (MANUFACTURER Only)
+**POST** `/api/company/onboarding/create-company/`  
+**[Protected]** - Requires authentication
+
+**Authorization:** Only users with `selected_role == 'MANUFACTURER'` and no existing company can use this endpoint.
+
+This endpoint creates a complete company setup atomically:
+- Creates Company record
+- Creates CompanyUser with OWNER role
+- Creates default CompanyFeature flags
+- Creates default Financial Year
+- Sets user.active_company
+
+**Request:**
+```json
+{
+  "name": "ABC Manufacturing",
+  "code": "ABC001",
+  "legal_name": "ABC Manufacturing Private Limited",
+  "company_type": "PRIVATE_LIMITED",
+  "timezone": "Asia/Kolkata",
+  "language": "en",
+  "base_currency": "currency-uuid"
+}
+```
+
+**Required Fields:**
+- `name` - Company name
+- `code` - Unique company code (business-friendly identifier)
+- `legal_name` - Official legal name
+- `base_currency` - Currency ID (get from /api/company/currencies/)
+
+**Optional Fields:**
+- `company_type` - Default: `PRIVATE_LIMITED`
+- `timezone` - Default: `UTC`
+- `language` - Default: `en`
+
+**Response (201 Created):**
+```json
+{
+  "message": "Company created successfully",
+  "company": {
+    "id": "company-uuid",
+    "code": "ABC001",
+    "name": "ABC Manufacturing",
+    "legal_name": "ABC Manufacturing Private Limited",
+    "company_type": "PRIVATE_LIMITED",
+    "timezone": "Asia/Kolkata",
+    "language": "en",
+    "base_currency": "currency-uuid",
+    "base_currency_code": "INR",
+    "base_currency_name": "Indian Rupee",
+    "is_active": true
+  },
+  "company_user": {
+    "company": "company-uuid",
+    "user": "user-id",
+    "role": "OWNER",
+    "is_default": true
+  },
+  "financial_year": {
+    "id": "fy-uuid",
+    "name": "FY 2025-2026",
+    "start_date": "2025-04-01",
+    "end_date": "2026-03-31",
+    "is_current": true
+  }
+}
+```
+
+**Error Response (403 Forbidden - Not MANUFACTURER):**
+```json
+{
+  "error": "Only MANUFACTURER users can create companies",
+  "current_role": "RETAILER"
+}
+```
+
+**Error Response (400 Bad Request - Already Has Company):**
+```json
+{
+  "error": "User already has an active company. Create another company via admin."
+}
+```
+
+**Error Response (400 Bad Request - Validation):**
+```json
+{
+  "error": "Field 'base_currency' is required"
+}
+```
+
+---
+
+### Company Management
+
+#### List Companies
+**GET** `/api/company/`
+
+**Response:**
+```json
+[
+  {
+    "id": "uuid",
+    "code": "COMP001",
+    "name": "My Company Pvt Ltd",
+    "legal_name": "My Company Private Limited",
+    "company_type": "PRIVATE_LIMITED",
+    "timezone": "Asia/Kolkata",
+    "language": "en",
+    "base_currency": "currency-uuid",
+    "base_currency_code": "INR",
+    "base_currency_name": "Indian Rupee",
+    "is_active": true,
+    "created_at": "2025-01-01T00:00:00Z",
+    "updated_at": "2025-01-01T00:00:00Z"
+  }
+]
+```
+
+#### Create Company
+**POST** `/api/company/create/`
+
+**Request:**
+```json
+{
+  "code": "COMP001",
+  "name": "My Company Pvt Ltd",
+  "legal_name": "My Company Private Limited",
+  "company_type": "PRIVATE_LIMITED",
+  "timezone": "Asia/Kolkata",
+  "language": "en",
+  "base_currency_id": "currency-uuid",
+  "is_active": true
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "message": "Company created successfully",
+  "company": {
+    "id": "uuid",
+    "code": "COMP001",
+    "name": "My Company Pvt Ltd",
+    "legal_name": "My Company Private Limited",
+    "company_type": "PRIVATE_LIMITED",
+    "timezone": "Asia/Kolkata",
+    "language": "en",
+    "base_currency": "currency-uuid",
+    "base_currency_code": "INR",
+    "base_currency_name": "Indian Rupee",
+    "is_active": true,
+    "created_at": "2025-01-01T00:00:00Z",
+    "updated_at": "2025-01-01T00:00:00Z"
+  }
+}
+```
+
+**Company Types:**
+- `PRIVATE_LIMITED` - Private Limited
+- `PUBLIC_LIMITED` - Public Limited
+- `PARTNERSHIP` - Partnership
+- `PROPRIETORSHIP` - Proprietorship
+- `LLP` - Limited Liability Partnership
+
+**Error Response (400 Bad Request):**
+```json
+{
+  "code": ["Company with this code already exists."],
+  "base_currency_id": ["Currency does not exist."]
+}
+```
+
+#### Get Company Details
+**GET** `/api/company/{company_id}/`
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "code": "COMP001",
+  "name": "My Company Pvt Ltd",
+  "legal_name": "My Company Private Limited",
+  "company_type": "PRIVATE_LIMITED",
+  "timezone": "Asia/Kolkata",
+  "language": "en",
+  "base_currency": "currency-uuid",
+  "base_currency_code": "INR",
+  "base_currency_name": "Indian Rupee",
+  "is_active": true,
+  "created_at": "2025-01-01T00:00:00Z",
+  "updated_at": "2025-01-01T00:00:00Z"
+}
+```
+
+#### Update Company
+**PUT** `/api/company/{company_id}/`  
+**PATCH** `/api/company/{company_id}/` (partial update)
+
+**Request:**
+```json
+{
+  "name": "Updated Company Name",
+  "is_active": true
+}
+```
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "code": "COMP001",
+  "name": "Updated Company Name",
+  "legal_name": "My Company Private Limited",
+  "company_type": "PRIVATE_LIMITED",
+  "timezone": "Asia/Kolkata",
+  "language": "en",
+  "base_currency": "currency-uuid",
+  "base_currency_code": "INR",
+  "base_currency_name": "Indian Rupee",
+  "is_active": true,
+  "created_at": "2025-01-01T00:00:00Z",
+  "updated_at": "2025-01-27T10:00:00Z"
+}
+```
+
+#### Delete Company
+**DELETE** `/api/company/{company_id}/`
+
+**Response:**
+```json
+{
+  "message": "Company deleted successfully"
+}
+```
+
+---
+
+### Company Setup - Multi-Phase Onboarding
+
+The company setup follows a 3-phase approach:
+- **PHASE 1:** Create company with basic information
+- **PHASE 2:** Configure business settings and enable modules
+- **PHASE 3:** Add company addresses
+
+#### Check Setup Status
+**GET** `/api/company/{company_id}/setup-status/`
+
+**Response:**
+```json
+{
+  "setup_percentage": 66,
+  "phase_1_complete": true,
+  "phase_2_complete": true,
+  "phase_3_complete": false,
+  "next_steps": [
+    "Add company addresses in Phase 3"
+  ],
+  "company": {
+    "id": "uuid",
+    "name": "My Company",
+    "code": "COMP001",
+    "setup_complete": false
+  }
+}
+```
+
+---
+
+### Business Settings (Phase 2)
+
+#### Get Business Settings
+**GET** `/api/company/{company_id}/business-settings/`
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "name": "My Company",
+  "code": "COMP001",
+  "legal_name": "My Company Private Limited",
+  "timezone": "Asia/Kolkata",
+  "language": "en",
+  "base_currency": "currency-uuid",
+  "features": {
+    "inventory_enabled": true,
+    "hr_enabled": false,
+    "logistics_enabled": true,
+    "workflow_enabled": true,
+    "portal_enabled": false,
+    "pricing_enabled": true
+  }
+}
+```
+
+#### Update Business Settings
+**PUT** `/api/company/{company_id}/business-settings/`
+
+**Request:**
+```json
+{
+  "timezone": "Asia/Kolkata",
+  "language": "en",
+  "base_currency": "currency-uuid",
+  "features": {
+    "inventory_enabled": true,
+    "hr_enabled": true,
+    "logistics_enabled": true,
+    "workflow_enabled": true,
+    "portal_enabled": true,
+    "pricing_enabled": true
+  }
+}
+```
+
+**Response:** Same as GET response with updated values
+
+---
+
+### Feature Management
+
+#### Get Company Features
+**GET** `/api/company/{company_id}/features/`
+
+**Response:**
+```json
+{
+  "company": "company-uuid",
+  "inventory_enabled": true,
+  "hr_enabled": false,
+  "logistics_enabled": true,
+  "workflow_enabled": true,
+  "portal_enabled": false,
+  "pricing_enabled": true
+}
+```
+
+#### Update Company Features
+**PUT** `/api/company/{company_id}/features/`
+
+**Request:**
+```json
+{
+  "inventory_enabled": true,
+  "hr_enabled": true,
+  "logistics_enabled": false,
+  "workflow_enabled": true,
+  "portal_enabled": true,
+  "pricing_enabled": true
+}
+```
+
+**Response:** Same as GET response with updated values
+
+---
+
+### Address Management (Phase 3)
+
+#### List Company Addresses
+**GET** `/api/company/{company_id}/addresses/`
+
+**Response:**
+```json
+[
+  {
+    "id": "uuid",
+    "address_type": "REGISTERED",
+    "address_line1": "123 Main Street",
+    "address_line2": "Floor 2",
+    "city": "Mumbai",
+    "state": "Maharashtra",
+    "postal_code": "400001",
+    "country": "IN",
+    "is_primary": true,
+    "is_active": true,
+    "created_at": "2025-01-27T10:00:00Z"
+  }
+]
+```
+
+#### Create Company Address
+**POST** `/api/company/{company_id}/addresses/`
+
+**Request:**
+```json
+{
+  "address_type": "REGISTERED",
+  "address_line1": "123 Main Street",
+  "address_line2": "Floor 2",
+  "city": "Mumbai",
+  "state": "Maharashtra",
+  "postal_code": "400001",
+  "country": "IN",
+  "is_primary": true
+}
+```
+
+**Response:** Same as list response item
+
+**Address Types:**
+- `REGISTERED` - Official registered address
+- `BILLING` - Billing address
+- `SHIPPING` - Shipping address
+- `BRANCH` - Branch office address
+
+#### Get Address Details
+**GET** `/api/company/{company_id}/addresses/{address_id}/`
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "address_type": "REGISTERED",
+  "address_line1": "123 Main Street",
+  "address_line2": "Floor 2",
+  "city": "Mumbai",
+  "state": "Maharashtra",
+  "postal_code": "400001",
+  "country": "IN",
+  "is_primary": true,
+  "is_active": true,
+  "created_at": "2025-01-27T10:00:00Z",
+  "updated_at": "2025-01-27T10:00:00Z"
+}
+```
+
+#### Update Address
+**PUT** `/api/company/{company_id}/addresses/{address_id}/`  
+**PATCH** `/api/company/{company_id}/addresses/{address_id}/` (partial update)
+
+**Request:**
+```json
+{
+  "address_line1": "456 New Street",
+  "city": "Delhi",
+  "state": "Delhi",
+  "postal_code": "110001"
+}
+```
+
+**Response:** Same as GET response with updated values
+
+#### Delete Address
+**DELETE** `/api/company/{company_id}/addresses/{address_id}/`
+
+**Response:**
+```json
+{
+  "message": "Address deleted successfully"
+}
+```
+
+---
+
+### Currency Management
+
+#### List Currencies
+**GET** `/api/company/currencies/`
+
+**Response:**
+```json
+[
+  {
+    "id": "uuid",
+    "code": "INR",
+    "name": "Indian Rupee",
+    "symbol": "₹",
+    "decimal_places": 2
+  },
+  {
+    "id": "uuid",
+    "code": "USD",
+    "name": "US Dollar",
+    "symbol": "$",
+    "decimal_places": 2
+  }
+]
+```
+
+---
 
 ### Financial Year Management
 
@@ -1406,37 +2312,96 @@ OR
 
 These APIs are designed for B2B retailer portal access.
 
-### Retailer Registration
+### Retailer Registration Flow
 
-#### Register New Retailer
+The retailer registration flow is integrated with the main user registration:
+
+1. **Register User Account** - `POST /api/users/register/` (with email, phone, password)
+2. **Login** - `POST /auth/login/` (get JWT tokens)
+3. **Select Role** - `POST /api/users/select-role/` with `{"role": "RETAILER"}`
+4. **Complete Retailer Profile** - `POST /api/portal/register/` (optional company_id)
+5. **Discover Companies** - `GET /api/portal/companies/discover/` (find companies to request access)
+
+### Register/Complete Retailer Profile
 **POST** `/api/portal/register/`  
-**[Public]**
+**[Protected]** - Requires authentication
+
+Complete retailer profile for an already registered user. The user's email and phone are already in the system from user registration.
 
 **Request:**
 ```json
 {
-  "business_name": "Retailer Business Name",
-  "contact_person": "John Doe",
+  "company_id": "uuid-of-company"
+}
+```
+
+**Note:** `company_id` is **optional**. If not provided, the user can discover companies later and request access.
+
+**Response (with company_id):**
+```json
+{
+  "detail": "Retailer profile updated",
+  "user_id": "2",
   "email": "retailer@example.com",
-  "phone": "+91-9876543210",
-  "gstin": "27XXXXX5678X1Z9",
-  "address": "123 Retail St, City",
-  "city": "Mumbai",
-  "state": "Maharashtra",
-  "pincode": "400001",
-  "company_code": "VENDOR001"
+  "phone": "+919876543210",
+  "retailer_user_id": "uuid",
+  "company_name": "Vendor Company",
+  "company_id": "uuid",
+  "status": "PENDING",
+  "message": "Your request to access Vendor Company has been submitted. An administrator will review your request."
+}
+```
+
+**Response (without company_id):**
+```json
+{
+  "detail": "Retailer profile updated",
+  "user_id": "2",
+  "email": "retailer@example.com",
+  "phone": "+919876543210",
+  "message": "Profile updated. You can discover and request access to companies later."
+}
+```
+
+---
+
+### Complete Profile with Address
+**POST** `/api/portal/complete-profile/`  
+**[Protected]** - Requires authentication
+
+Alternative endpoint to complete retailer profile with business address details.
+
+**Request:**
+```json
+{
+  "company_id": "uuid-of-company",
+  "business_name": "My Retail Shop",
+  "address": {
+    "address_line1": "123 Main Street",
+    "city": "Mumbai",
+    "state": "Maharashtra",
+    "postal_code": "400001",
+    "country": "IN"
+  }
 }
 ```
 
 **Response:**
 ```json
 {
-  "id": "uuid",
-  "business_name": "Retailer Business Name",
+  "detail": "Retailer profile completed",
+  "user_id": "2",
+  "email": "retailer@example.com",
+  "phone": "+919876543210",
+  "retailer_user_id": "uuid",
+  "company_name": "Vendor Company",
+  "company_id": "uuid",
   "status": "PENDING",
-  "message": "Registration submitted successfully. Awaiting approval."
+  "message": "Profile completed. Your request to access Vendor Company is pending approval."
 }
 ```
+
+---
 
 #### Discover Companies
 **GET** `/api/portal/companies/discover/`  

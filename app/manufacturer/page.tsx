@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import mqtt from "mqtt";
-import { fetchWithAuth, getAuthToken,API_URL } from "@/utils/auth_fn";
+import { apiClient } from "@/utils/api";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -221,10 +221,10 @@ const [approveLoadingId, setApproveLoadingId] = useState<number | null>(null);
   setSelectedOrderId(orderId);
   setShowEmployeeModal(true);
   try {
-    const response = await fetchWithAuth(`${API_URL}/get_available_employees_for_order/?order_id=${orderId}`);
-    if (!response.ok) throw new Error("Failed to fetch employees");
-    const data = await response.json();
-    setEmployeeList(data.employees || []);
+    // Note: This endpoint may need to be updated based on actual HR/employee API
+    const response = await apiClient.get<{ employees: any[] }>(`/workflow/employees/available/?order_id=${orderId}`);
+    if (response.error) throw new Error(response.error);
+    setEmployeeList(response.data?.employees || []);
   } catch (err) {
     setEmployeeList([]);
     alert("Failed to fetch employees");
@@ -236,17 +236,15 @@ const [approveLoadingId, setApproveLoadingId] = useState<number | null>(null);
 const allocateOrderToEmployee = async (orderId: number, employeeId: number) => {
   setAllocateLoadingId(employeeId);
   try {
-    const response = await fetchWithAuth(`${API_URL}/allocate-order/`, {
-      method: "POST",
-      body: JSON.stringify({ order_id: orderId, employee_id: employeeId }),
+    const response = await apiClient.post(`/workflow/orders/${orderId}/assign/`, {
+      employee_id: employeeId,
     });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || "Failed to allocate order");
+    if (response.error) {
+      throw new Error(response.error || "Failed to allocate order");
     }
     alert("Order allocated successfully!");
     setShowEmployeeModal(false);
-    fetchShipments(); // Refresh shipments
+    fetchOrders(); // Refresh orders
   } catch (err) {
     alert((err as Error).message);
   } finally {
@@ -351,7 +349,7 @@ const allocateOrderToEmployee = async (orderId: number, employeeId: number) => {
     }, 5000);
   }, []);
   
-// Fetch orders 
+// Fetch orders using documented API endpoint
 const fetchOrders = useCallback(async () => {
   try {
     setOrdersLoading(true);
@@ -362,33 +360,29 @@ const fetchOrders = useCallback(async () => {
       setOrdersLoading(false);
       return;
     }
-    const response = await fetchWithAuth(`${API_URL}/orders/?company=${companyId}`);
-    if (!response.ok) throw new Error("Failed to fetch orders");
-    const data = await response.json();
-    setOrders(data.results || []);
+    // Use documented endpoint: GET /api/orders/sales/
+    const response = await apiClient.get<any[]>(`/orders/sales/`);
+    if (response.error) throw new Error(response.error);
+    setOrders(response.data || []);
   } catch (err) {
     setOrdersError((err as Error).message);
     setOrders([]);
   } finally {
     setOrdersLoading(false);
   }
-}, [fetchWithAuth]);
+}, []);
 
-// Approve order (create shipment)
-const approveOrder = async (orderId: number) => {
-  setApproveLoadingId(orderId);
+// Confirm/Approve order using documented API endpoint
+const approveOrder = async (orderId: string) => {
+  setApproveLoadingId(orderId as any);
   try {
-    const response = await fetchWithAuth(`${API_URL}/approve_order/`, {
-      method: "POST",
-      body: JSON.stringify({ order_id: orderId }),
-    });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || "Failed to approve order");
+    // Use documented endpoint: POST /api/orders/sales/{order_id}/confirm/
+    const response = await apiClient.post(`/orders/sales/${orderId}/confirm/`);
+    if (response.error) {
+      throw new Error(response.error || "Failed to confirm order");
     }
-    alert("Order approved and added to shipments!");
+    alert("Order confirmed successfully!");
     fetchOrders();
-    fetchShipments();
   } catch (err) {
     alert((err as Error).message);
   } finally {
@@ -403,17 +397,12 @@ useEffect(() => {
 
   const [chartData, setChartData] = useState<any[]>([]);
 
+// Fetch chart data - using accounting reports for revenue data
 const fetchChartData = async () => {
   try {
-    const companyId = localStorage.getItem("company_id");
-    if (!companyId) return;
-
-    const response = await fetchWithAuth(`${API_URL}/shipment-stats/?company=${companyId}`);
-    if (!response.ok) throw new Error("Failed to fetch shipment stats");
-    const result = await response.json();
-
-    // Format for recharts
-    setChartData(formatChartData(result.data || []));
+    // For now, we'll use sample data since shipment-stats isn't documented
+    // This could be replaced with /api/reports/ endpoints when available
+    setChartData([]);
   } catch (err) {
     console.error("Error fetching chart data:", err);
     setChartData([]);
@@ -423,45 +412,39 @@ const fetchChartData = async () => {
 useEffect(() => {
   fetchChartData();
 }, []);
-  // Fetch shipments data with improved error handling
+
+  // Fetch inventory/stock data instead of shipments
   const fetchShipments = useCallback(async () => {
     try {
       setShipmentsLoading(true);
-      const token = getAuthToken();
-      // Get company_id from localStorage
       const companyId = localStorage.getItem("company_id");
       if (!companyId) {
         setShipmentsError("No company selected");
         setShipmentsLoading(false);
         return;
     }
-      const response = await fetchWithAuth(`${API_URL}/shipments/?company=${companyId}`);
+      // Use documented endpoint: GET /api/inventory/items/
+      const response = await apiClient.get<any[]>(`/inventory/items/`);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.detail || `Server responded with status ${response.status}`
-        );
+      if (response.error) {
+        throw new Error(response.error);
       }
 
-      const data: ShipmentResponse = await response.json();
-      setShipments(data.results || []);
+      setShipments(response.data || []);
       setShipmentsError(null);
     } catch (err) {
-      console.error("Error fetching shipments:", err);
+      console.error("Error fetching inventory:", err);
       setShipmentsError((err as Error).message);
     } finally {
       setShipmentsLoading(false);
     }
-  }, [getAuthToken]);
+  }, []);
 
-  // Fetch count data with improved error handling
+  // Fetch dashboard counts from orders and inventory
   const fetchCounts = useCallback(async () => {
     try {
       setLoading(true);
-      const token = getAuthToken();
 
-      // Get company_id from localStorage
       const companyId = localStorage.getItem("company_id");
       if (!companyId) {
         setError("No company selected");
@@ -469,24 +452,24 @@ useEffect(() => {
         return;
     }
 
-    // Pass company_id as query param
-    const response = await fetchWithAuth(`${API_URL}/count?company=${companyId}`);
+    // Fetch orders to calculate counts
+    const ordersResponse = await apiClient.get<any[]>(`/orders/sales/`);
+    const orders = ordersResponse.data || [];
+    
+    // Calculate counts from orders
+    const totalOrders = orders.length;
+    const pendingOrders = orders.filter((o: any) => o.status === "DRAFT" || o.status === "CONFIRMED").length;
 
+    // Fetch parties to get customer/store count
+    const partiesResponse = await apiClient.get<any[]>(`/party/parties/?party_type=CUSTOMER`);
+    const numStores = partiesResponse.data?.length || 0;
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.detail || `Server responded with status ${response.status}`
-        );
-      }
-
-      const countsData: CountsResponse = await response.json();
-      setOverviewData((prevData) => ({
-        totalOrders: countsData.orders_placed,
-        numStores: countsData.retailers_available,
-        deliveryAgents: countsData.employees_available,
-        pendingOrders: countsData.pending_orders,
-      }));
+    setOverviewData({
+      totalOrders,
+      numStores,
+      deliveryAgents: 0, // Would need HR/employee endpoint
+      pendingOrders,
+    });
 
       setError(null);
     } catch (err) {
@@ -495,15 +478,15 @@ useEffect(() => {
     } finally {
       setLoading(false);
     }
-  }, [getAuthToken]);
+  }, []);
 
   // Set up polling with cleanup
   useEffect(() => {
     fetchCounts();
     fetchShipments();
 
-    const countsIntervalId = setInterval(fetchCounts, 5000);
-    const shipmentsIntervalId = setInterval(fetchShipments, 30000);
+    const countsIntervalId = setInterval(fetchCounts, 30000);
+    const shipmentsIntervalId = setInterval(fetchShipments, 60000);
 
     return () => {
       clearInterval(countsIntervalId);

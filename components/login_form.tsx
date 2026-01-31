@@ -9,21 +9,37 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { API_URL } from "@/utils/auth_fn";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginFormData } from "@/lib/schemas/auth";
+import { api, apiClient } from "@/utils/api";
 
-type Company = {
-  id: string;
-  name: string;
-};
+interface LoginResponse {
+  access: string;
+  refresh: string;
+}
+
+interface ContextResponse {
+  role?: string;
+  role_selected?: boolean;
+  has_company?: boolean;
+  default_company_id?: string;
+  default_company?: {
+    id: string;
+    name: string;
+    code: string;
+    role: string;
+  };
+  manufacturer_linked?: boolean;
+  is_portal_user?: boolean;
+  companies?: Array<{ id: string; name: string }>;
+}
 
 export function LoginForm({
   className,
@@ -31,8 +47,6 @@ export function LoginForm({
 }: React.ComponentPropsWithoutRef<"div">) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [loadingCompanies, setLoadingCompanies] = useState(false);
   const router = useRouter();
 
   const {
@@ -43,65 +57,99 @@ export function LoginForm({
     resolver: zodResolver(loginSchema),
   });
 
-  // Fetch companies for internal users
-  useEffect(() => {
-    const fetchCompanies = async () => {
-      setLoadingCompanies(true);
-      try {
-        const response = await fetch(`${API_URL}/api/company/discover/`);
-        if (response.ok) {
-          const data = await response.json();
-          setCompanies(data);
-        }
-      } catch (err) {
-        console.error("Failed to fetch companies:", err);
-      } finally {
-        setLoadingCompanies(false);
-      }
-    };
-
-    fetchCompanies();
-  }, []);
-
   const onSubmit = async (data: LoginFormData) => {
     setError("");
 
     try {
-      const response = await fetch(`${API_URL}/auth/login/`, {
+      // Login doesn't require auth (getting fresh token)
+      // Auth endpoints are at root level, not under /api
+      const loginResponse = await api<LoginResponse>("http://127.0.0.1:8000/auth/login/", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(data),
-      });
+      }, false);
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        setError(result.detail || "Invalid email or password");
+      if (loginResponse.error) {
+        setError(loginResponse.error);
         return;
       }
 
-      if (result.access) {
-        // Store tokens and company_id
+      const result = loginResponse.data;
+      if (result?.access) {
+        // Store tokens
         localStorage.setItem("access_token", result.access);
         localStorage.setItem("refresh_token", result.refresh);
-        localStorage.setItem("company_id", data.company_id);
 
-        // Redirect based on user role
-        if (result.user_type === "RETAILER") {
-          router.replace("/retailer");
-        } else if (result.user_type === "COMPANY_USER") {
-          // Check role for internal users
-          if (result.role === "ADMIN" || result.role === "ACCOUNTANT") {
-            router.replace("/manufacturer");
-          } else if (result.role === "EMPLOYEE") {
-            router.replace("/employee");
+        // Get user context to determine routing
+        try {
+          const contextResponse = await apiClient.get<ContextResponse>("/users/me/context/");
+
+          if (contextResponse.data) {
+            const context = contextResponse.data;
+
+            // Route based on context
+            // 1. Check if role is not selected
+            if (!context.role || !context.role_selected) {
+              router.replace("/authentication/setup/role");
+              return;
+            }
+
+            // 2. Check if MANUFACTURER and no company
+            if (context.role === "MANUFACTURER" && !context.has_company) {
+              router.replace("/authentication/setup/company");
+              return;
+            }
+
+            // 3. Handle RETAILER role
+            if (context.role === "RETAILER") {
+              // Check if retailer profile is complete using is_portal_user flag
+              if (context.is_portal_user) {
+                router.replace("/retailer");
+              } else {
+                router.replace("/retailer/setup");
+              }
+              return;
+            }
+            
+            // Other external roles (WHOLESALER, SUPPLIER, etc.) need manufacturer link
+            if (context.role !== "MANUFACTURER" && context.role !== "RETAILER" && !context.manufacturer_linked) {
+              router.replace("/authentication/setup/external");
+              return;
+            }
+
+            // 4. Multiple companies - show switcher
+            if (context.companies && context.companies.length > 1 && !context.default_company_id) {
+              router.replace("/select-company");
+              return;
+            }
+
+            // 5. Set active company if available
+            const companyId = context.default_company_id || context.default_company?.id;
+            if (companyId) {
+              localStorage.setItem("company_id", companyId);
+            }
+
+            // 6. Route to appropriate dashboard
+            // Note: Retailers are already handled above, this is fallback
+            if (context.role === "RETAILER") {
+              router.replace("/retailer/setup");
+            } else if (
+              context.role === "MANUFACTURER" ||
+              context.role === "ADMIN" ||
+              context.role === "ACCOUNTANT"
+            ) {
+              router.replace("/manufacturer");
+            } else if (context.role === "EMPLOYEE") {
+              router.replace("/employee");
+            } else {
+              router.replace("/manufacturer");
+            }
           } else {
-            router.replace("/manufacturer");
+            // If context fetch fails, route to role selection
+            router.replace("/authentication/setup/role");
           }
-        } else {
-          router.replace("/manufacturer");
+        } catch (contextErr) {
+          console.error("Context fetch error:", contextErr);
+          router.replace("/authentication/setup/role");
         }
       } else {
         setError("Unexpected error. Please try again.");
@@ -147,7 +195,7 @@ export function LoginForm({
                     id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
-                    className="bg-gray-900 text-white border-gray-700 pr-10"
+                    className="bg-gray-900 text-white border border-gray-700 pr-10"
                     {...register("password")}
                   />
                   <button
@@ -160,27 +208,6 @@ export function LoginForm({
                 </div>
                 {errors.password && (
                   <p className="text-red-500 text-sm">{errors.password.message}</p>
-                )}
-              </div>
-
-              {/* Company Dropdown */}
-              <div className="grid gap-2">
-                <Label htmlFor="company_id">Select Company</Label>
-                <select
-                  id="company_id"
-                  className="bg-gray-900 text-white border border-gray-700 w-full h-10 px-3 rounded-md focus:ring focus:ring-blue-500"
-                  {...register("company_id")}
-                  disabled={loadingCompanies}
-                >
-                  <option value="">-- Select Company --</option>
-                  {companies.map((company) => (
-                    <option key={company.id} value={company.id}>
-                      {company.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.company_id && (
-                  <p className="text-red-500 text-sm">{errors.company_id.message}</p>
                 )}
               </div>
 

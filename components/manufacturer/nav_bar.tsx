@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Anchor from "@/components/retailer/anchor";
+import { logout } from "@/utils/api";
 
 export const NAVLINKS = [
   { title: "Dashboard", href: "/manufacturer" },
@@ -17,23 +18,8 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const router = useRouter();
 
-  const handleLogout = async () => {
-    try {
-      await fetch("/api/logout/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        },
-      });
-    } catch (e) {
-      // Optionally handle error
-    } finally {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
-      localStorage.removeItem("company_id");
-      router.replace("/authentication");
-    }
+  const handleLogout = () => {
+    logout();
   };
 
   return (

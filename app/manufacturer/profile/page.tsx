@@ -1,10 +1,17 @@
 // filepath: c:\Users\91902\OneDrive - Amrita Vishwa Vidyapeetham\Documents\sony\SmartChainERP\frontend\app\manufacturer\profile\page.tsx
 "use client";
-import { API_URL } from '@/utils/auth_fn';
+import { apiClient } from '@/utils/api';
 import React, { useState, useEffect } from 'react';
 
+interface UserDetails {
+  username: string;
+  email: string;
+  is_staff: boolean;
+  groups: string[];
+}
+
 const ProfileTab = () => {
-  const [userDetails, setUserDetails] = useState({
+  const [userDetails, setUserDetails] = useState<UserDetails>({
     username: '',
     email: '',
     is_staff: false,
@@ -14,20 +21,13 @@ const ProfileTab = () => {
   useEffect(() => {
     const fetchUserDetails = async () => {
       try {
-        const token = localStorage.getItem('access_token');
-        if (!token) throw new Error('Authentication token not found. Please log in again.');
+        const response = await apiClient.get<UserDetails>("/user_detail/");
 
-        const response = await fetch(`${API_URL}/user_detail/`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) throw new Error(`User details API request failed with status ${response.status}`);
-
-        const data = await response.json();
-        setUserDetails(data);
+        if (response.data) {
+          setUserDetails(response.data);
+        } else if (response.error) {
+          console.error('Failed to fetch user details:', response.error);
+        }
       } catch (error) {
         console.error('Failed to fetch user details from API:', error);
       }

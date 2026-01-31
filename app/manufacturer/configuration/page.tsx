@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { apiClient } from "@/utils/api";
 
 const ConfigurationPage = () => {
   const [activeApp, setActiveApp] = useState("odoo"); // Default active app is Odoo
@@ -24,24 +25,13 @@ const ConfigurationPage = () => {
     }
 
     try {
-      const token = localStorage.getItem("access_token");
-      if (!token) throw new Error("Authentication token not found. Please log in again.");
+      const response = await apiClient.post("/odoo/save-credentials/", formData);
 
-      const response = await fetch("http://127.0.0.1:8000/api/odoo/save-credentials/", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
+      if (!response.error) {
         setMessage("Credentials saved successfully!");
         setFormData({ db: "", username: "", password: "" }); // Reset form
       } else {
-        const errorData = await response.json();
-        setMessage(errorData.error || "Failed to save credentials.");
+        setMessage(response.error || "Failed to save credentials.");
       }
     } catch (error) {
       setMessage("An error occurred while saving credentials.");
