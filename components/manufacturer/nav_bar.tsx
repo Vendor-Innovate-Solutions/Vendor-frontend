@@ -9,6 +9,7 @@ export const NAVLINKS = [
   { title: "Accounting", href: "/manufacturer/accounting" },
   { title: "StockCount", href: "/manufacturer/stockCount" },
   { title: "Connections", href: "/manufacturer/connections" },
+  { title: "Company Code", href: "/manufacturer/company-code" },
   { title: "Profile", href: "/manufacturer/profile" },
   { title: "Configuration", href: "/manufacturer/configuration" },
   { title: "Company", href: "/manufacturer/company" },

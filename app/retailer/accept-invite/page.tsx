@@ -83,8 +83,7 @@ function AcceptInviteContent() {
     try {
       const response = await api(`/portal/verify-invite/?code=${inviteCode}`, {
         method: 'GET',
-        requiresAuth: false
-      });
+      }, false);
 
       if (response.error) {
         setError(response.error || 'Invalid or expired invite code');
@@ -159,8 +158,7 @@ function AcceptInviteContent() {
       const response = await api('/portal/accept-invite/', {
         method: 'POST',
         body: JSON.stringify(payload),
-        requiresAuth: false
-      });
+      }, false);
 
       if (response.error) {
         setError(response.error || 'Failed to accept invitation');

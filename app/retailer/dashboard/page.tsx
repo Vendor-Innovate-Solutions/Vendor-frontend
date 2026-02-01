@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { RetailerNavbar } from '../../../components/retailer/nav_bar';
 import { apiClient } from '../../../utils/api';
+import { UserContext, PaginatedResponse } from '@/types/api';
 
 interface Order {
   id: string;
@@ -70,7 +71,7 @@ const DashboardTab = () => {
   useEffect(() => {
     const checkProfile = async () => {
       try {
-        const contextResponse = await apiClient.get('/users/me/context/');
+        const contextResponse = await apiClient.get<UserContext>('/users/me/context/');
         
         if (contextResponse.data) {
           const context = contextResponse.data;
@@ -104,11 +105,11 @@ const DashboardTab = () => {
     setLoading(true);
     try {
       // Fetch orders using Portal API
-      const ordersResponse = await apiClient.get('/portal/orders/');
+      const ordersResponse = await apiClient.get<PaginatedResponse<Order> | Order[]>('/portal/orders/');
       if (ordersResponse.data) {
         const ordersList = Array.isArray(ordersResponse.data) 
           ? ordersResponse.data 
-          : ordersResponse.data.results || [];
+          : (ordersResponse.data as PaginatedResponse<Order>).results || [];
         setRecentOrders(ordersList.slice(0, 5));
         setStats(prev => ({
           ...prev,
@@ -117,7 +118,7 @@ const DashboardTab = () => {
       }
 
       // Fetch companies from context - they have the connected companies info
-      const contextResponse = await apiClient.get('/users/me/context/');
+      const contextResponse = await apiClient.get<UserContext>('/users/me/context/');
       if (contextResponse.data) {
         const context = contextResponse.data;
         const companiesList = context.companies || [];
@@ -135,11 +136,11 @@ const DashboardTab = () => {
 
       // Fetch invoices - try portal endpoint or general invoices
       try {
-        const invoicesResponse = await apiClient.get('/invoices/');
+        const invoicesResponse = await apiClient.get<PaginatedResponse<Invoice> | Invoice[]>('/invoices/');
         if (invoicesResponse.data) {
           const invoicesList = Array.isArray(invoicesResponse.data) 
             ? invoicesResponse.data 
-            : invoicesResponse.data.results || [];
+            : (invoicesResponse.data as PaginatedResponse<Invoice>).results || [];
           setInvoices(invoicesList);
           
           // Calculate pending payments

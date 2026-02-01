@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '../../../utils/api';
+import { UserContext } from '@/types/api';
 import { 
   MapPin, 
   CheckCircle,
@@ -59,7 +60,7 @@ const RetailerOnboarding = () => {
   const checkExistingProfile = async () => {
     try {
       // Use context API to check if retailer is already registered
-      const contextResponse = await apiClient.get('/users/me/context/');
+      const contextResponse = await apiClient.get<UserContext>('/users/me/context/');
       
       if (contextResponse.data) {
         const context = contextResponse.data;

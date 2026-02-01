@@ -263,11 +263,11 @@ const CompanyOnboardingPage = () => {
       for (const address of addresses) {
         const payload = {
           address_type: address.addressType,
-          address_line1: address.addressLine1,
-          address_line2: address.addressLine2,
+          line1: address.addressLine1,
+          line2: address.addressLine2,
           city: address.city,
           state: address.state,
-          postal_code: address.postalCode,
+          pincode: address.postalCode,
           country: address.country,
           is_primary: address.isPrimary,
         };

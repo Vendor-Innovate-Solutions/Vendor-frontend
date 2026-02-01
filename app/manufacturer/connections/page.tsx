@@ -125,10 +125,32 @@ const ConnectionsPage = () => {
   const fetchRequests = async () => {
     setRequestsLoading(true);
     try {
-      const response = await fetchWithAuth(`${API_URL}/company/retailer-requests/`);
+      // Use portal/retailers endpoint with status filter for pending requests
+      const response = await fetchWithAuth(`${API_URL}/portal/retailers/?status=PENDING`);
       if (response.ok) {
         const data = await response.json();
-        setRequests(Array.isArray(data) ? data : data.results || []);
+        const retailers = Array.isArray(data) ? data : data.results || [];
+        // Map backend data to frontend format
+        setRequests(retailers.map((r: any) => ({
+          id: r.id,
+          retailer: {
+            id: r.user_id || r.id,
+            username: r.user_email || r.email || '',
+            email: r.user_email || r.email || '',
+            first_name: r.user_name?.split(' ')[0] || '',
+            last_name: r.user_name?.split(' ').slice(1).join(' ') || '',
+          },
+          company: {
+            id: r.party_id || '',
+            name: r.business_name || r.party_name || '',
+            address: r.address || '',
+          },
+          status: (r.status || 'PENDING').toLowerCase(),
+          message: r.notes || '',
+          requested_at: r.created_at || new Date().toISOString(),
+          reviewed_at: r.updated_at || null,
+          reviewed_by: null,
+        })));
       }
     } catch (error) {
       console.error('Failed to fetch requests:', error);
@@ -140,10 +162,33 @@ const ConnectionsPage = () => {
   const fetchConnections = async () => {
     setConnectionsLoading(true);
     try {
-      const response = await fetchWithAuth(`${API_URL}/company/connections/`);
+      // Use portal/retailers endpoint with status filter for approved connections
+      const response = await fetchWithAuth(`${API_URL}/portal/retailers/?status=APPROVED`);
       if (response.ok) {
         const data = await response.json();
-        setConnections(Array.isArray(data) ? data : data.results || []);
+        const retailers = Array.isArray(data) ? data : data.results || [];
+        // Map backend data to frontend format
+        setConnections(retailers.map((r: any) => ({
+          id: r.id,
+          company: {
+            id: r.party_id || '',
+            name: r.business_name || r.party_name || '',
+            address: r.address || '',
+          },
+          retailer: {
+            id: r.user_id || r.id,
+            username: r.user_email || r.email || '',
+            email: r.user_email || r.email || '',
+            first_name: r.user_name?.split(' ')[0] || '',
+            last_name: r.user_name?.split(' ').slice(1).join(' ') || '',
+          },
+          status: (r.status || 'APPROVED').toLowerCase(),
+          connected_at: r.created_at || new Date().toISOString(),
+          approved_by: null,
+          approved_at: r.updated_at || r.created_at || new Date().toISOString(),
+          credit_limit: r.credit_limit || 0,
+          payment_terms: r.payment_terms || 'Net 30 days',
+        })));
       }
     } catch (error) {
       console.error('Failed to fetch connections:', error);
@@ -155,13 +200,34 @@ const ConnectionsPage = () => {
   const fetchInvitations = async () => {
     setInvitationsLoading(true);
     try {
-      const response = await fetchWithAuth(`${API_URL}/company/invites/`);
+      // Use company/connection/generate-code to get company code (serves as invite)
+      const response = await fetchWithAuth(`${API_URL}/company/connection/generate-code/`);
       if (response.ok) {
         const data = await response.json();
-        setInvitations(Array.isArray(data) ? data : data.results || []);
+        // Company code acts as a permanent invite
+        setInvitations([{
+          id: 1,
+          invite_code: data.company_code || '',
+          company: {
+            id: data.company_id || '',
+            name: data.company_name || '',
+            address: '',
+          },
+          invited_by: { id: 0, username: '', email: '' },
+          email: '',
+          message: data.message || 'Share this code with retailers',
+          created_at: new Date().toISOString(),
+          expires_at: '', // Company codes don't expire
+          is_used: false,
+          used_at: null,
+          used_by: null,
+        }]);
+      } else {
+        setInvitations([]);
       }
     } catch (error) {
       console.error('Failed to fetch invitations:', error);
+      setInvitations([]);
     } finally {
       setInvitationsLoading(false);
     }
@@ -173,53 +239,48 @@ const ConnectionsPage = () => {
     setSuccess('');
     
     try {
-      const response = await fetchWithAuth(`${API_URL}/company/generate-invite-code/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: inviteMessage || 'Join our network to access our products.',
-          expires_in_days: inviteExpireDays
-        }),
-      });
+      // Use company/connection/generate-code endpoint
+      const response = await fetchWithAuth(`${API_URL}/company/connection/generate-code/`);
       
       if (response.ok) {
         const data = await response.json();
-        setSuccess(`Invite code generated: ${data.invite_code}`);
+        setSuccess(`Company code: ${data.company_code} - Share this with retailers!`);
         setShowGenerateInviteModal(false);
         setInviteMessage('');
         setInviteExpireDays(7);
         fetchInvitations();
         
         // Copy to clipboard
-        navigator.clipboard.writeText(data.invite_code);
+        navigator.clipboard.writeText(data.company_code);
       } else {
         const errorData = await response.json();
-        setError(errorData.error || 'Failed to generate invite code');
+        setError(errorData.error || errorData.detail || 'Failed to get company code');
       }
     } catch (error) {
-      setError('Failed to generate invite code');
+      setError('Failed to get company code');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRequest = async (requestId: number, action: 'approve' | 'reject') => {
+  const handleRequest = async (requestId: number | string, action: 'approve' | 'reject') => {
     setLoading(true);
     setError('');
     setSuccess('');
     
-    const payload: any = {
-      request_id: requestId,
-      action
-    };
-    
-    if (action === 'approve') {
-      payload.credit_limit = parseFloat(creditLimit) || 0;
-      payload.payment_terms = paymentTerms;
-    }
-    
     try {
-      const response = await fetchWithAuth(`${API_URL}/company/accept-request/`, {
+      // Use portal/retailers/<id>/approve or /reject endpoint
+      const endpoint = action === 'approve' 
+        ? `${API_URL}/portal/retailers/${requestId}/approve/`
+        : `${API_URL}/portal/retailers/${requestId}/reject/`;
+      
+      const payload: any = {};
+      if (action === 'approve') {
+        payload.credit_limit = parseFloat(creditLimit) || 0;
+        payload.payment_terms = paymentTerms;
+      }
+      
+      const response = await fetchWithAuth(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -227,7 +288,7 @@ const ConnectionsPage = () => {
       
       if (response.ok) {
         const data = await response.json();
-        setSuccess(data.message);
+        setSuccess(data.message || `Successfully ${action}d retailer`);
         setShowRequestModal(false);
         setSelectedRequest(null);
         setCreditLimit('');
@@ -236,7 +297,7 @@ const ConnectionsPage = () => {
         fetchConnections();
       } else {
         const errorData = await response.json();
-        setError(errorData.error || `Failed to ${action} request`);
+        setError(errorData.error || errorData.detail || `Failed to ${action} request`);
       }
     } catch (error) {
       setError(`Failed to ${action} request`);

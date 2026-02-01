@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { RetailerNavbar } from '../../../components/retailer/nav_bar';
 import { apiClient } from '../../../utils/api';
+import { UserContext, PaginatedResponse } from '@/types/api';
 
 interface Product {
   id: string;
@@ -76,7 +77,7 @@ const OrdersPage = () => {
   useEffect(() => {
     const checkProfile = async () => {
       try {
-        const contextResponse = await apiClient.get('/users/me/context/');
+        const contextResponse = await apiClient.get<UserContext>('/users/me/context/');
         
         if (contextResponse.data) {
           const context = contextResponse.data;
@@ -118,11 +119,11 @@ const OrdersPage = () => {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get('/portal/orders/');
+      const response = await apiClient.get<PaginatedResponse<Order> | Order[]>('/portal/orders/');
       if (response.data) {
         const ordersList = Array.isArray(response.data) 
           ? response.data 
-          : response.data.results || [];
+          : (response.data as PaginatedResponse<Order>).results || [];
         setOrders(ordersList);
       }
     } catch (error) {
@@ -134,9 +135,9 @@ const OrdersPage = () => {
   const fetchConnectedCompanies = async () => {
     try {
       // Get companies from user context
-      const contextResponse = await apiClient.get('/users/me/context/');
+      const contextResponse = await apiClient.get<UserContext>('/users/me/context/');
       if (contextResponse.data && contextResponse.data.companies) {
-        const companiesList = contextResponse.data.companies.map((c: { id: string; name: string }) => ({
+        const companiesList = contextResponse.data.companies.map((c) => ({
           id: c.id,
           company_id: c.id,
           company_name: c.name,
@@ -152,11 +153,11 @@ const OrdersPage = () => {
   const fetchProducts = async (companyId: string) => {
     try {
       // Use Portal items API to get products
-      const response = await apiClient.get('/portal/items/');
+      const response = await apiClient.get<PaginatedResponse<Product> | Product[]>('/portal/items/');
       if (response.data) {
         const productsList = Array.isArray(response.data) 
           ? response.data 
-          : response.data.results || [];
+          : (response.data as PaginatedResponse<Product>).results || [];
         setProducts(productsList);
       }
     } catch (error) {

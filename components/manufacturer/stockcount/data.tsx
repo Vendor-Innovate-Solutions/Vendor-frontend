@@ -25,13 +25,8 @@ export const useStockData = () => {
   useEffect(() => {
     const fetchStockData = async () => {
       try {
-        const companyId = localStorage.getItem("company_id");
-        if (!companyId) {
-          setError("No company selected");
-          setLoading(false);
-          return;
-        }
-        const response = await fetchWithAuth(`${API_URL}/products/?company=${companyId}`);
+        // Use new stockcount API endpoint
+        const response = await fetchWithAuth(`${API_URL}/inventory/stockcount/by-product/`);
         if (!response.ok) throw new Error("Failed to fetch stock data");
 
         const data = await response.json();
@@ -39,9 +34,9 @@ export const useStockData = () => {
 
         const formattedData = Array.isArray(data)
           ? data.map((item) => ({
-              productName: item.name || "Unknown",
-              category: item.category || 0,
-              available: item.available_quantity || 0,
+              productName: item.product_name || "Unknown",
+              category: item.category_id || 0,
+              available: item.total_quantity || 0,
               sold: item.total_shipped || 0,
               demanded: item.total_required_quantity || 0,
             }))

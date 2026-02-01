@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Navbar } from '../../../../components/manufacturer/nav_bar';
 import { apiClient } from '../../../../utils/api';
@@ -41,7 +41,7 @@ const INDIAN_STATES = [
   "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
 ];
 
-const CreatePartyPage = () => {
+const CreatePartyPageContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const partyType = searchParams.get('type') || 'CUSTOMER';
@@ -445,6 +445,18 @@ const CreatePartyPage = () => {
         </form>
       </div>
     </div>
+  );
+};
+
+const CreatePartyPage = () => {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      </div>
+    }>
+      <CreatePartyPageContent />
+    </Suspense>
   );
 };
 

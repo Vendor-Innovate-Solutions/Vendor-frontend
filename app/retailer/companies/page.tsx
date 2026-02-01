@@ -15,8 +15,23 @@ import {
   AlertCircle,
   ArrowRight
 } from 'lucide-react';
+import { PublicCompany, UserContext, PaginatedResponse, JoinCompanyResponse } from '@/types/api';
 
 interface Company {
+  id: string;
+  company_id?: string;
+  company_name: string;
+  name?: string;
+  company?: {
+    id: string;
+    name: string;
+  };
+  status: 'approved' | 'connected' | 'pending' | 'rejected' | 'suspended';
+  connected_at?: string;
+  credit_limit?: string;
+}
+
+interface CompanyDisplay {
   id: string;
   company_id?: string;
   company_name: string;
@@ -29,14 +44,6 @@ interface Company {
   status: 'approved' | 'connected' | 'pending' | 'rejected' | 'suspended';
   connected_at?: string;
   credit_limit?: string;
-}
-
-interface PublicCompany {
-  id: string;
-  name: string;
-  description?: string;
-  city?: string;
-  state?: string;
 }
 
 const CompaniesPage = () => {
@@ -64,7 +71,7 @@ const CompaniesPage = () => {
   useEffect(() => {
     const checkProfile = async () => {
       try {
-        const contextResponse = await apiClient.get('/users/me/context/');
+        const contextResponse = await apiClient.get<UserContext>('/users/me/context/');
         
         if (contextResponse.data) {
           const context = contextResponse.data;
@@ -98,13 +105,13 @@ const CompaniesPage = () => {
     setLoading(true);
     try {
       // Get companies from user context
-      const contextResponse = await apiClient.get('/users/me/context/');
+      const contextResponse = await apiClient.get<UserContext>('/users/me/context/');
       if (contextResponse.data && contextResponse.data.companies) {
-        const companiesList = contextResponse.data.companies.map((c: { id: string; name: string }) => ({
+        const companiesList = contextResponse.data.companies.map((c) => ({
           id: c.id,
           company_id: c.id,
           company_name: c.name,
-          status: 'connected'
+          status: 'connected' as const
         }));
         setCompanies(companiesList);
       }
@@ -118,15 +125,15 @@ const CompaniesPage = () => {
   const fetchPublicCompanies = async () => {
     try {
       // Use Portal companies discover API
-      const response = await apiClient.get('/portal/companies/discover/');
+      const response = await apiClient.get<PaginatedResponse<PublicCompany> | PublicCompany[]>('/portal/companies/discover/');
       if (response.data) {
         const publicList = Array.isArray(response.data) 
           ? response.data 
-          : response.data.results || [];
+          : (response.data as PaginatedResponse<PublicCompany>).results || [];
         // Map to expected format
-        setPublicCompanies(publicList.map((c: { company_code: string; company_name: string; description?: string; contact_email?: string }) => ({
-          id: c.company_code,
-          name: c.company_name,
+        setPublicCompanies(publicList.map((c) => ({
+          id: c.company_code || c.id,
+          name: c.company_name || c.name,
           description: c.description,
           contact_email: c.contact_email
         })));
@@ -138,7 +145,7 @@ const CompaniesPage = () => {
 
   const handleJoinByCode = async () => {
     if (!inviteCode.trim()) {
-      setError('Please enter an invite code');
+      setError('Please enter a company code');
       return;
     }
     
@@ -147,21 +154,23 @@ const CompaniesPage = () => {
     setSuccess('');
     
     try {
-      // Use complete-profile API with company_id to request connection
-      const response = await apiClient.post('/portal/complete-profile/', {
-        company_id: inviteCode.trim()
+      // Use new join-by-company-code API
+      const response = await apiClient.post<JoinCompanyResponse>('/portal/join-by-company-code/', {
+        company_code: inviteCode.toUpperCase()
       });
       
-      if (response.error) {
-        setError(response.error || 'Invalid or expired invite code');
-      } else {
-        setSuccess('Connection request sent! Awaiting approval.');
+      if (response.data) {
+        setSuccess(response.data.message || 'Successfully joined company!');
         setInviteCode('');
-        fetchConnectedCompanies();
         setActiveTab('connected');
+        // Refresh companies list
+        fetchConnectedCompanies();
+      } else if (response.error) {
+        setError(response.error);
       }
-    } catch (error) {
-      setError('Failed to join. Please try again.');
+    } catch (error: any) {
+      console.error('Failed to join by code:', error);
+      setError(error?.message || 'Failed to join company');
     } finally {
       setJoiningByCode(false);
     }

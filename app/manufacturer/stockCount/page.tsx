@@ -96,7 +96,7 @@ export default function StockCountPage() {
   // Fetch categories and companies for dropdowns
   useEffect(() => {
     const fetchData = async () => {
-      const categoriesRes = await apiClient.get<any>("/categories/");
+      const categoriesRes = await apiClient.get<any>("/catalog/categories/");
       if (categoriesRes.data) {
         const data = categoriesRes.data;
         setCategories(Array.isArray(data) ? data : (data.results || []));
@@ -511,7 +511,7 @@ return (
                 return;
               }
               try {
-                const response = await apiClient.post<any>("/categories/", {
+                const response = await apiClient.post<any>("/catalog/categories/", {
                   name: categoryForm.name,
                   company: Number(companyId),
                 });
