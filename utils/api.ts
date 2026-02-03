@@ -126,6 +126,12 @@ export async function api<T = unknown>(
     if (token) {
       headersInit["Authorization"] = `Bearer ${token}`;
     }
+    
+    // Add company ID header if available
+    const companyId = localStorage.getItem("company_id");
+    if (companyId) {
+      headersInit["X-Company-ID"] = companyId;
+    }
   }
 
   // Extract body from options
@@ -153,6 +159,12 @@ export async function api<T = unknown>(
           "Accept": "application/json",
           "Authorization": `Bearer ${newAccessToken}`,
         };
+        
+        // Add company ID header if available
+        const companyId = localStorage.getItem("company_id");
+        if (companyId) {
+          retryHeaders["X-Company-ID"] = companyId;
+        }
 
         response = await fetch(url, {
           ...restOptions,

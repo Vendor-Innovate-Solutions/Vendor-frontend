@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Navbar } from '@/components/manufacturer/nav_bar';
 import { apiClient } from '@/utils/api';
 import { Copy, Check, Users, Link as LinkIcon, AlertCircle } from 'lucide-react';
 import { CompanyCodeData } from '@/types/api';
@@ -43,7 +42,6 @@ const CompanyCodePage = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-neutral-950">
-        <Navbar />
         <div className="container mx-auto p-6 text-center">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
           <p className="text-neutral-400 mt-4">Loading...</p>
@@ -55,7 +53,6 @@ const CompanyCodePage = () => {
   if (error) {
     return (
       <div className="min-h-screen bg-neutral-950">
-        <Navbar />
         <div className="container mx-auto p-6">
           <div className="bg-red-900/20 border border-red-700 rounded-lg p-6 max-w-2xl mx-auto">
             <div className="flex items-center gap-3 mb-4">
@@ -71,8 +68,6 @@ const CompanyCodePage = () => {
 
   return (
     <div className="min-h-screen bg-neutral-950">
-      <Navbar />
-      
       <div className="container mx-auto p-6">
         <div className="max-w-4xl mx-auto">
           {/* Header */}

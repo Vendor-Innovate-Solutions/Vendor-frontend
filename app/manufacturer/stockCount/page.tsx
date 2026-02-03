@@ -127,22 +127,29 @@ export default function StockCountPage() {
     }
     
     try {
-      const response = await apiClient.post("/products/", {
+      const payload: Record<string, unknown> = {
         name: form.name,
-        company: Number(companyId),
-        category: form.category ? Number(form.category) : null,
-        available_quantity: Number(form.available_quantity),
         unit: form.unit,
-        total_shipped: Number(form.total_shipped),
-        total_required_quantity: Number(form.total_required_quantity),
-        price: Number(form.price),
-        hsn_code: form.hsn_code,
-        cgst_rate: Number(form.cgst_rate),
-        sgst_rate: Number(form.sgst_rate),
-        igst_rate: Number(form.igst_rate),
-        cess_rate: Number(form.cess_rate),
+        price: Number(form.price) || 0,
+        available_quantity: Number(form.available_quantity) || 0,
+        total_shipped: Number(form.total_shipped) || 0,
+        total_required_quantity: Number(form.total_required_quantity) || 0,
+        hsn_code: form.hsn_code || "",
+        cgst_rate: Number(form.cgst_rate) || 0,
+        sgst_rate: Number(form.sgst_rate) || 0,
+        igst_rate: Number(form.igst_rate) || 0,
+        cess_rate: Number(form.cess_rate) || 0,
         status: form.status,
-      });
+      };
+      
+      // Only include category_id if a category is selected
+      if (form.category && form.category.trim() !== "") {
+        payload.category_id = form.category;
+      }
+      
+      console.log("Sending product payload:", JSON.stringify(payload));
+      
+      const response = await apiClient.post("/catalog/products/", payload);
 
       if (!response.error) {
         setSubmitSuccess("Product added successfully!");
@@ -228,7 +235,7 @@ return (
                   >
                     <option value="">No Category</option>
                     {categories.map((cat) => (
-                      <option key={cat.category_id} value={cat.category_id}>
+                      <option key={cat.id} value={cat.id}>
                         {cat.name}
                       </option>
                     ))}

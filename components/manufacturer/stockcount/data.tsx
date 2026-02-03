@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 
 export interface StockItem {
   productName: string;
-  category: number;
+  category: string;
   available: number;
   sold: number;
   demanded: number;
@@ -35,8 +35,8 @@ export const useStockData = () => {
         const formattedData = Array.isArray(data)
           ? data.map((item) => ({
               productName: item.product_name || "Unknown",
-              category: item.category_id || 0,
-              available: item.total_quantity || 0,
+              category: item.category || "-",
+              available: item.total_quantity || item.available_quantity || 0,
               sold: item.total_shipped || 0,
               demanded: item.total_required_quantity || 0,
             }))
