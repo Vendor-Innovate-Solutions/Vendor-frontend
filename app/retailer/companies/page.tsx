@@ -104,19 +104,23 @@ const CompaniesPage = () => {
   const fetchConnectedCompanies = async () => {
     setLoading(true);
     try {
-      // Get companies from user context
-      const contextResponse = await apiClient.get<UserContext>('/users/me/context/');
-      if (contextResponse.data && contextResponse.data.companies) {
-        const companiesList = contextResponse.data.companies.map((c) => ({
+      // Get companies from retailer connections API
+      const response = await apiClient.get<Company[]>('/portal/companies/');
+      if (response.data && Array.isArray(response.data)) {
+        const companiesList = response.data.map((c) => ({
           id: c.id,
-          company_id: c.id,
-          company_name: c.name,
-          status: 'connected' as const
+          company_id: c.company_id,
+          company_name: c.company_name,
+          status: (c.status?.toLowerCase() || 'pending') as Company['status'],
+          connected_at: c.connected_at
         }));
         setCompanies(companiesList);
+      } else {
+        setCompanies([]);
       }
     } catch (error) {
       console.error('Failed to fetch connected companies:', error);
+      setCompanies([]);
     } finally {
       setLoading(false);
     }

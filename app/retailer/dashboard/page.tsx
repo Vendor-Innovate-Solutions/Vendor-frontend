@@ -117,20 +117,19 @@ const DashboardTab = () => {
         }));
       }
 
-      // Fetch companies from context - they have the connected companies info
-      const contextResponse = await apiClient.get<UserContext>('/users/me/context/');
-      if (contextResponse.data) {
-        const context = contextResponse.data;
-        const companiesList = context.companies || [];
-        setCompanies(companiesList.map((c: { id: string; name: string }) => ({
-          id: c.id,
-          company_name: c.name,
-          status: 'connected',
-          connected_at: ''
+      // Fetch companies from retailer connections API
+      const companiesResponse = await apiClient.get<any[]>('/portal/companies/');
+      if (companiesResponse.data && Array.isArray(companiesResponse.data)) {
+        const approvedCompanies = companiesResponse.data.filter((c) => c.status === 'APPROVED');
+        setCompanies(approvedCompanies.map((c) => ({
+          id: c.company_id || c.id,
+          company_name: c.company_name,
+          status: c.status?.toLowerCase() || 'connected',
+          connected_at: c.connected_at || ''
         })));
         setStats(prev => ({
           ...prev,
-          connectedCompanies: companiesList.length
+          connectedCompanies: approvedCompanies.length
         }));
       }
 

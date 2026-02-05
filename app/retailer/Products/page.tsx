@@ -74,15 +74,17 @@ const ProductsPage = () => {
 
   const fetchConnectedCompanies = async () => {
     try {
-      const response = await fetchWithAuth(`${API_URL}/users/me/context/`);
+      const response = await fetchWithAuth(`${API_URL}/portal/companies/`);
       if (response.ok) {
-        const context = await response.json();
-        if (context.companies) {
-          const connectedCompanies = context.companies.map((c: { id: string; name: string }) => ({
-            id: c.id,
-            company_name: c.name,
-            status: 'connected'
-          }));
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          const connectedCompanies = data
+            .filter((c: any) => c.status === 'APPROVED')
+            .map((c: any) => ({
+              id: c.company_id || c.id,
+              company_name: c.company_name,
+              status: c.status?.toLowerCase() || 'connected'
+            }));
           setCompanies(connectedCompanies);
         }
       }

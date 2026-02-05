@@ -73,7 +73,7 @@ export default function StockCountPage() {
   sgst_rate: "0",
   igst_rate: "0",
   cess_rate: "0",
-  status: "sufficient",
+  status: "available",
 });
   
   // Category Modal State
@@ -90,17 +90,23 @@ export default function StockCountPage() {
   const [showUnitDropdown, setShowUnitDropdown] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState("");
-  const [categories, setCategories] = useState<{category_id: number, name: string}[]>([]);
-  const [companies, setCompanies] = useState<{id: number, name: string}[]>([]);
+  const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
+  const [companies, setCompanies] = useState<{id: string | number, name: string}[]>([]);
+
+  // Function to fetch categories (can be called after creation)
+  const fetchCategories = async () => {
+    const categoriesRes = await apiClient.get<any>("/catalog/categories/");
+    if (categoriesRes.data) {
+      const data = categoriesRes.data;
+      // API returns {categories: [...], count: ...}
+      setCategories(Array.isArray(data) ? data : (data.categories || data.results || []));
+    }
+  };
 
   // Fetch categories and companies for dropdowns
   useEffect(() => {
     const fetchData = async () => {
-      const categoriesRes = await apiClient.get<any>("/catalog/categories/");
-      if (categoriesRes.data) {
-        const data = categoriesRes.data;
-        setCategories(Array.isArray(data) ? data : (data.results || []));
-      }
+      await fetchCategories();
       
       const companiesRes = await apiClient.get<any>("/company/");
       if (companiesRes.data) {
@@ -167,7 +173,7 @@ export default function StockCountPage() {
           sgst_rate: "0",
           igst_rate: "0",
           cess_rate: "0",
-          status: "sufficient",
+          status: "available",
         });
         setShowModal(false);
       } else {
@@ -471,9 +477,10 @@ return (
                   onChange={handleFormChange}
                   className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700"
                 >
-                  <option value="sufficient">Sufficient</option>
-                  <option value="low">Low</option>
+                  <option value="available">Available</option>
                   <option value="out_of_stock">Out of Stock</option>
+                  <option value="on_demand">On Demand</option>
+                  <option value="discontinued">Discontinued</option>
                 </select>
               </div>
               {submitError && <p className="text-red-400">{submitError}</p>}
@@ -523,7 +530,8 @@ return (
                   company: Number(companyId),
                 });
                 if (!response.error && response.data) {
-                  setCategories((prev) => [...prev, response.data]);
+                  // Refetch categories from backend to ensure dropdown is updated
+                  await fetchCategories();
                   setShowCategoryModal(false);
                   setCategoryForm({ name: "" });
                 } else {

@@ -221,13 +221,12 @@ const [approveLoadingId, setApproveLoadingId] = useState<number | null>(null);
   setSelectedOrderId(orderId);
   setShowEmployeeModal(true);
   try {
-    // Note: This endpoint may need to be updated based on actual HR/employee API
     const response = await apiClient.get<{ employees: any[] }>(`/workflow/employees/available/?order_id=${orderId}`);
     if (response.error) throw new Error(response.error);
     setEmployeeList(response.data?.employees || []);
   } catch (err) {
     setEmployeeList([]);
-    alert("Failed to fetch employees");
+    console.error("Error fetching employees:", err);
   } finally {
     setEmployeeLoading(false);
   }
@@ -245,6 +244,7 @@ const allocateOrderToEmployee = async (orderId: number, employeeId: number) => {
     alert("Order allocated successfully!");
     setShowEmployeeModal(false);
     fetchOrders(); // Refresh orders
+    fetchShipments(); // Refresh shipments list to show updated employee assignment
   } catch (err) {
     alert((err as Error).message);
   } finally {
@@ -259,8 +259,11 @@ const allocateOrderToEmployee = async (orderId: number, employeeId: number) => {
       header: "ID",
     },
     {
-      accessorKey: "order",
+      accessorKey: "order_number",
       header: "Order ID",
+      cell: ({ row }: { row: any }) => {
+        return row.original.order_number || row.original.order || "N/A";
+      },
     },
     {
       accessorKey: "employee",
@@ -296,11 +299,15 @@ const allocateOrderToEmployee = async (orderId: number, employeeId: number) => {
         const status = row.getValue("status") as string;
         let statusClass = "";
 
-        switch (status.toLowerCase()) {
+        switch (status?.toLowerCase()) {
           case "delivered":
             statusClass = "text-green-500";
             break;
+          case "allocated":
+            statusClass = "text-green-400";
+            break;
           case "pending":
+          case "pending allocation":
             statusClass = "text-yellow-500";
             break;
           case "processing":
@@ -318,13 +325,16 @@ const allocateOrderToEmployee = async (orderId: number, employeeId: number) => {
     id: "actions",
     cell: ({ row }: { row: any }) =>{
       const employee = row.original.employee;
+      const isAllocated = !!employee;
        return (
       <Button
-        className="bg-blue-600 text-white px-3 py-1 rounded"
-        onClick={() => fetchEmployeesForOrder(row.original.order)}
-        disabled={!!employee}
+        className={isAllocated 
+          ? "bg-gray-500 text-gray-300 px-3 py-1 rounded cursor-not-allowed opacity-50" 
+          : "bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"}
+        onClick={() => !isAllocated && fetchEmployeesForOrder(row.original.order)}
+        disabled={isAllocated}
       >
-        Allocate
+        {isAllocated ? "Allocated" : "Allocate"}
       </Button>
     );
   },
@@ -413,7 +423,7 @@ useEffect(() => {
   fetchChartData();
 }, []);
 
-  // Fetch inventory/stock data instead of shipments
+  // Fetch confirmed orders that need employee allocation for delivery
   const fetchShipments = useCallback(async () => {
     try {
       setShipmentsLoading(true);
@@ -423,17 +433,31 @@ useEffect(() => {
         setShipmentsLoading(false);
         return;
     }
-      // Use documented endpoint: GET /api/inventory/items/
-      const response = await apiClient.get<any[]>(`/inventory/items/`);
+      // Use orders API to get confirmed orders
+      const response = await apiClient.get<any>(`/orders/sales/`);
 
       if (response.error) {
         throw new Error(response.error);
       }
 
-      setShipments(response.data || []);
+      // Map orders to shipment format for the table
+      const ordersData = response.data?.results || response.data || [];
+      const shipmentData = ordersData
+        .filter((order: any) => order.status === 'CONFIRMED' || order.status === 'PROCESSING')
+        .map((order: any) => ({
+          shipment_id: order.id,
+          order: order.id,
+          order_number: order.order_number,
+          shipment_date: order.delivery_date || order.order_date,
+          status: order.assigned_employee_id ? 'Allocated' : 'Pending Allocation',
+          employee: order.assigned_employee_id || null,
+          employee_name: order.assigned_employee_name || null,
+        }));
+
+      setShipments(shipmentData);
       setShipmentsError(null);
     } catch (err) {
-      console.error("Error fetching inventory:", err);
+      console.error("Error fetching orders for delivery:", err);
       setShipmentsError((err as Error).message);
     } finally {
       setShipmentsLoading(false);
@@ -760,42 +784,33 @@ useEffect(() => {
         </thead>
         <tbody>
           {orders.map((order) => (
-            <tr key={order.order_id} className="border-t border-blue-500/20">
-              <td className="p-2 text-left">{order.order_id}</td>
-              <td className="p-2 text-left">{order.retailer_name}</td>
+            <tr key={order.id} className="border-t border-blue-500/20">
+              <td className="p-2 text-left">{order.order_number || order.id}</td>
+              <td className="p-2 text-left">{order.customer_name}</td>
 
               <td className="p-2 text-left">
-                {order.items && order.items.length > 0 ? (
-                  <ul className="list-disc list-inside space-y-1">
-                   {order.items.map((item: any) => (
-                    <li key={item.id}>
-                      <span className="font-medium">{item.product_name}</span>
-                       <span className="text-xs text-gray-400 ml-2">x {item.quantity}</span>
-                    </li>
-                  ))}
-                  </ul>
-                ) : (
-                  <span className="italic text-gray-400">No products</span>
-                 )}
+                <span className="italic text-gray-400">
+                  {order.item_count > 0 ? `${order.item_count} item(s)` : 'No products'}
+                </span>
               </td>
               
               
-              <td className="p-2 text-left">{order.status}</td>
+              <td className="p-2 text-left uppercase">{order.status}</td>
               <td className="p-2 text-center">
-                {order.status === "pending" ? (
+                {order.status?.toUpperCase() === "DRAFT" ? (
                 <Button
                   className="bg-green-600 text-white px-3 py-1 rounded"
-                  disabled={approveLoadingId === order.order_id}
-                  onClick={() => approveOrder(order.order_id)}
+                  disabled={approveLoadingId === order.id}
+                  onClick={() => approveOrder(order.id)}
                 >
-                  {approveLoadingId === order.order_id ? "Approving..." : "Approve"}
+                  {approveLoadingId === order.id ? "Confirming..." : "Confirm"}
                 </Button>
                 ) : (
                   <Button
                     className="bg-gray-600 text-white px-3 py-1 rounded"
                     disabled
                   >
-                    Approved
+                    {order.status === 'CONFIRMED' ? 'Confirmed' : order.status}
                   </Button>
                 )}
               </td>
@@ -864,18 +879,18 @@ useEffect(() => {
       ) : (
         <ul className="space-y-3">
           {employeeList.map((emp: any) => (
-            <li key={emp.employee_id} className="flex justify-between items-center bg-neutral-800 p-3 rounded">
+            <li key={emp.id} className="flex justify-between items-center bg-neutral-800 p-3 rounded">
               <div>
-                <div className="font-semibold text-white">{emp.user?.username || emp.name || "Employee"}</div>
-                <div className="text-gray-400 text-sm">Contact: {emp.contact}</div>
-                {emp.truck && <div className="text-gray-400 text-sm">Truck: {emp.truck}</div>}
+                <div className="font-semibold text-white">{emp.name || "Employee"}</div>
+                <div className="text-gray-400 text-sm">{emp.employee_code} - {emp.designation}</div>
+                {emp.department && <div className="text-gray-400 text-sm">Dept: {emp.department}</div>}
               </div>
               <Button
                 className="bg-green-600 text-white px-3 py-1 rounded"
-                disabled={allocateLoadingId === emp.employee_id}
-                onClick={() => allocateOrderToEmployee(selectedOrderId!, emp.employee_id)}
+                disabled={allocateLoadingId === emp.id}
+                onClick={() => allocateOrderToEmployee(selectedOrderId!, emp.id)}
               >
-                {allocateLoadingId === emp.employee_id ? "Allocating..." : "Allocate"}
+                {allocateLoadingId === emp.id ? "Allocating..." : "Allocate"}
               </Button>
             </li>
           ))}
@@ -903,13 +918,8 @@ useEffect(() => {
                     </div>
                   ) : (
                     <div className="text-center py-8">
-                      <p className="text-gray-400">No shipment data available.</p>
-                      <Button
-                        onClick={fetchShipments}
-                        className="mt-4 bg-gray-700 hover:bg-gray-600 text-white"
-                      >
-                        Refresh Data
-                      </Button>
+                      <p className="text-gray-400">No shipments created yet.</p>
+                      <p className="text-sm text-gray-500 mt-2">Shipments will appear here once orders are confirmed and processed.</p>
                     </div>
                   ))}
               </Card>

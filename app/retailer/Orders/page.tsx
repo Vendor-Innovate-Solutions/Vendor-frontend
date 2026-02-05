@@ -25,13 +25,27 @@ interface Product {
   id: string;
   product_id?: string;
   name: string;
+  description?: string;
+  category?: string;
   category_name?: string;
+  category_id?: string;
   company_name?: string;
   company_id?: string;
-  available_quantity: string;
+  company?: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  available_quantity: string | number;
   unit: string;
   price: string;
   status?: string;
+  brand?: string;
+  hsn_code?: string;
+  in_stock?: boolean;
+  cgst_rate?: string;
+  sgst_rate?: string;
+  igst_rate?: string;
 }
 
 interface Company {
@@ -134,34 +148,39 @@ const OrdersPage = () => {
 
   const fetchConnectedCompanies = async () => {
     try {
-      // Get companies from user context
-      const contextResponse = await apiClient.get<UserContext>('/users/me/context/');
-      if (contextResponse.data && contextResponse.data.companies) {
-        const companiesList = contextResponse.data.companies.map((c) => ({
-          id: c.id,
-          company_id: c.id,
-          company_name: c.name,
-          status: 'connected'
-        }));
+      // Get companies from retailer connections API
+      const response = await apiClient.get<any[]>('/portal/companies/');
+      if (response.data && Array.isArray(response.data)) {
+        const companiesList = response.data
+          .filter((c) => c.status === 'APPROVED')
+          .map((c) => ({
+            id: c.company_id || c.id,
+            company_id: c.company_id || c.id,
+            company_name: c.company_name,
+            status: c.status?.toLowerCase() || 'connected'
+          }));
         setCompanies(companiesList);
+      } else {
+        setCompanies([]);
       }
     } catch (error) {
       console.error('Failed to fetch companies:', error);
+      setCompanies([]);
     }
   };
 
   const fetchProducts = async (companyId: string) => {
     try {
-      // Use Portal items API to get products
-      const response = await apiClient.get<PaginatedResponse<Product> | Product[]>('/portal/items/');
+      // Use Portal products API with company filter
+      const response = await apiClient.get<Product[]>(
+        `/portal/products/?company_id=${companyId}`
+      );
       if (response.data) {
-        const productsList = Array.isArray(response.data) 
-          ? response.data 
-          : (response.data as PaginatedResponse<Product>).results || [];
-        setProducts(productsList);
+        setProducts(response.data);
       }
     } catch (error) {
       console.error('Failed to fetch products:', error);
+      setProducts([]);
     }
   };
 
@@ -217,11 +236,12 @@ const OrdersPage = () => {
 
     try {
       const orderItems = cart.map(item => ({
-        item_id: item.product.product_id || item.product.id,
-        quantity: item.quantity.toString()
+        product_id: item.product.id,
+        quantity: parseInt(item.quantity.toString())
       }));
 
-      const response = await apiClient.post('/portal/orders/create/', {
+      const response = await apiClient.post('/portal/orders/place/', {
+        company_id: selectedCompany,
         items: orderItems,
         notes: notes
       });
@@ -504,27 +524,29 @@ const OrdersPage = () => {
                       >
                         <div className="flex-1">
                           <h4 className="font-semibold">{product.name}</h4>
-                          {product.category_name && (
-                            <p className="text-sm text-neutral-400">{product.category_name}</p>
+                          {(product.category || product.category_name) && (
+                            <p className="text-sm text-neutral-400">
+                              {product.category || product.category_name}
+                            </p>
                           )}
                           <div className="flex items-center gap-4 mt-2">
                             <span className="text-lg font-bold text-green-400">
                               ₹{parseFloat(product.price).toLocaleString()}
                             </span>
                             <span className={`text-xs px-2 py-1 rounded-full ${
-                              parseFloat(product.available_quantity) > 10 
+                              Number(product.available_quantity) > 10 
                                 ? 'bg-green-900/30 text-green-400' 
-                                : parseFloat(product.available_quantity) > 0 
+                                : Number(product.available_quantity) > 0 
                                   ? 'bg-yellow-900/30 text-yellow-400'
                                   : 'bg-red-900/30 text-red-400'
                             }`}>
-                              {parseFloat(product.available_quantity)} {product.unit}
+                              {product.available_quantity} {product.unit}
                             </span>
                           </div>
                         </div>
                         <button
                           onClick={() => addToCart(product)}
-                          disabled={parseFloat(product.available_quantity) <= 0}
+                          disabled={Number(product.available_quantity) <= 0}
                           className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-neutral-700 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
                         >
                           <Plus className="h-5 w-5" />
