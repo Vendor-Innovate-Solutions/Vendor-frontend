@@ -105,7 +105,7 @@ const DashboardTab = () => {
     setLoading(true);
     try {
       // Fetch orders using Portal API
-      const ordersResponse = await apiClient.get<PaginatedResponse<Order> | Order[]>('/portal/orders/');
+      const ordersResponse = await apiClient.get<PaginatedResponse<Order> | Order[]>('/portal/my-orders/');
       if (ordersResponse.data) {
         const ordersList = Array.isArray(ordersResponse.data) 
           ? ordersResponse.data 

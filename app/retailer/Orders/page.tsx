@@ -133,7 +133,7 @@ const OrdersPage = () => {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get<PaginatedResponse<Order> | Order[]>('/portal/orders/');
+      const response = await apiClient.get<PaginatedResponse<Order> | Order[]>('/portal/my-orders/');
       if (response.data) {
         const ordersList = Array.isArray(response.data) 
           ? response.data 
