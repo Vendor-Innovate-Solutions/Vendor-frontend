@@ -28,7 +28,7 @@ async function refreshAccessToken(): Promise<string | null> {
 
   try {
     // Auth endpoints are at root level, not under /api
-    const response = await fetch(`http://127.0.0.1:8000/auth/refresh/`, {
+    const response = await fetch(`http://127.0.0.1:8000/auth/token/refresh/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -76,8 +76,7 @@ function clearTokens() {
 function redirectToLogin() {
   clearTokens();
   if (typeof window !== "undefined") {
-    // Use replace to prevent back button returning to protected page
-    window.location.replace("/authentication");
+    window.location.href = "/authentication";
   }
 }
 
@@ -116,8 +115,8 @@ export async function api<T = unknown>(
 ): Promise<ApiResponse<T>> {
   const url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint}`;
 
-  // Extract body from options
-  const { headers: _, body, ...restOptions } = options;
+  // Check if body is FormData (for file uploads)
+  const isFormData = options.body instanceof FormData;
 
   // Build headers object for fetch
   const headersInit: Record<string, string> = {
@@ -125,54 +124,25 @@ export async function api<T = unknown>(
   };
 
   // Don't set Content-Type for FormData - browser will set it with boundary
-  const isFormData = body instanceof FormData;
   if (!isFormData) {
     headersInit["Content-Type"] = "application/json";
   }
 
   if (requiresAuth) {
-    // Check if we're in a browser environment
-    if (typeof window === "undefined") {
-      console.error("Cannot access localStorage in server-side rendering");
-      return {
-        data: null,
-        error: "Not authenticated",
-        status: 401,
-      };
-    }
-
     const token = localStorage.getItem("access_token");
-    
-    // Debug logging
-    console.log("API Call Debug:", {
-      endpoint: url,
-      hasToken: !!token,
-      tokenType: typeof token,
-      tokenValue: token === null ? "NULL" : (token === "null" ? "STRING_NULL" : "HAS_VALUE"),
-    });
-    
-    // Strict token validation
-    if (!token || token === "null" || token === "undefined" || token.trim() === "") {
-      console.error("No valid access token found in localStorage", {
-        token,
-        type: typeof token
-      });
-      redirectToLogin();
-      return {
-        data: null,
-        error: "No authentication token. Please login.",
-        status: 401,
-      };
+    if (token) {
+      headersInit["Authorization"] = `Bearer ${token}`;
     }
-    
-    headersInit["Authorization"] = `Bearer ${token}`;
     
     // Add company ID header if available
     const companyId = localStorage.getItem("company_id");
-    if (companyId && companyId !== "null" && companyId !== "undefined" && companyId.trim() !== "") {
+    if (companyId) {
       headersInit["X-Company-ID"] = companyId;
     }
   }
+
+  // Extract body from options
+  const { headers: _, body, ...restOptions } = options;
 
   try {
     let response = await fetch(url, {
@@ -195,7 +165,7 @@ export async function api<T = unknown>(
           "Accept": "application/json",
           "Authorization": `Bearer ${newAccessToken}`,
         };
-        
+
         // Don't set Content-Type for FormData
         if (!isFormData) {
           retryHeaders["Content-Type"] = "application/json";
@@ -272,6 +242,7 @@ export async function api<T = unknown>(
 
 /**
  * Convenience methods for common HTTP methods
+ * These methods throw on error and return data directly for cleaner usage
  */
 export const apiClient = {
   get: async <T = unknown>(endpoint: string, requiresAuth: boolean = true): Promise<T> => {
@@ -281,43 +252,19 @@ export const apiClient = {
   },
 
   post: async <T = unknown>(endpoint: string, body?: unknown, requiresAuth: boolean = true): Promise<T> => {
-    const isFormData = body instanceof FormData;
-    const result = await api<T>(
-      endpoint, 
-      { 
-        method: "POST", 
-        body: isFormData ? body : (body ? JSON.stringify(body) : undefined) 
-      }, 
-      requiresAuth
-    );
+    const result = await api<T>(endpoint, { method: "POST", body: body ? JSON.stringify(body) : undefined }, requiresAuth);
     if (result.error) throw new Error(result.error);
     return result.data as T;
   },
 
   put: async <T = unknown>(endpoint: string, body?: unknown, requiresAuth: boolean = true): Promise<T> => {
-    const isFormData = body instanceof FormData;
-    const result = await api<T>(
-      endpoint, 
-      { 
-        method: "PUT", 
-        body: isFormData ? body : (body ? JSON.stringify(body) : undefined) 
-      }, 
-      requiresAuth
-    );
+    const result = await api<T>(endpoint, { method: "PUT", body: body ? JSON.stringify(body) : undefined }, requiresAuth);
     if (result.error) throw new Error(result.error);
     return result.data as T;
   },
 
   patch: async <T = unknown>(endpoint: string, body?: unknown, requiresAuth: boolean = true): Promise<T> => {
-    const isFormData = body instanceof FormData;
-    const result = await api<T>(
-      endpoint, 
-      { 
-        method: "PATCH", 
-        body: isFormData ? body : (body ? JSON.stringify(body) : undefined) 
-      }, 
-      requiresAuth
-    );
+    const result = await api<T>(endpoint, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }, requiresAuth);
     if (result.error) throw new Error(result.error);
     return result.data as T;
   },
@@ -328,18 +275,8 @@ export const apiClient = {
     return result.data as T;
   },
 
-  /**
-   * Upload file with FormData
-   */
   upload: async <T = unknown>(endpoint: string, formData: FormData, requiresAuth: boolean = true): Promise<T> => {
-    const result = await api<T>(
-      endpoint,
-      {
-        method: "POST",
-        body: formData,
-      },
-      requiresAuth
-    );
+    const result = await api<T>(endpoint, { method: "POST", body: formData }, requiresAuth);
     if (result.error) throw new Error(result.error);
     return result.data as T;
   },

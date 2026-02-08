@@ -156,8 +156,10 @@ export default function TallyImportPage() {
   
   const loadImportHistory = async () => {
     try {
-      const response = await apiClient.get<{ results: ImportJob[] }>("/system/tally-import/");
-      setImportHistory(response.results || []);
+      // apiClient.get returns data directly
+      const response = await apiClient.get<{ results: ImportJob[] } | ImportJob[]>("/system/tally-import/");
+      const historyList = Array.isArray(response) ? response : (response?.results || []);
+      setImportHistory(historyList);
     } catch (err) {
       console.error("Failed to load import history:", err);
     }
@@ -193,8 +195,8 @@ export default function TallyImportPage() {
       setRecordCounts(response.record_counts);
       setValidationErrors(response.validation?.validation_errors || []);
       
-      // Pre-select all data types
-      setSelectedTypes(response.data_types.map(t => t.toLowerCase().replace('_', '-')));
+      // Pre-select all data types (lowercase with underscores to match backend)
+      setSelectedTypes(response.data_types.map(t => t.toLowerCase()));
       
       // Load preview data for the first type
       if (response.data_types.length > 0) {
