@@ -215,15 +215,16 @@ const Dashboard: React.FC = () => {
 const [ordersLoading, setOrdersLoading] = useState(false);
 const [ordersError, setOrdersError] = useState<string | null>(null);
 const [approveLoadingId, setApproveLoadingId] = useState<number | null>(null);
+const [dispatchLoadingId, setDispatchLoadingId] = useState<string | null>(null);
 
   const fetchEmployeesForOrder = async (orderId: number) => {
   setEmployeeLoading(true);
   setSelectedOrderId(orderId);
   setShowEmployeeModal(true);
   try {
-    const response = await apiClient.get<{ employees: any[] }>(`/workflow/employees/available/?order_id=${orderId}`);
-    if (response.error) throw new Error(response.error);
-    setEmployeeList(response.data?.employees || []);
+    // apiClient.get returns data directly, throws on error
+    const response = await apiClient.get<any>(`/workflow/employees/available/?order_id=${orderId}`);
+    setEmployeeList(response?.employees || []);
   } catch (err) {
     setEmployeeList([]);
     console.error("Error fetching employees:", err);
@@ -235,12 +236,10 @@ const [approveLoadingId, setApproveLoadingId] = useState<number | null>(null);
 const allocateOrderToEmployee = async (orderId: number, employeeId: number) => {
   setAllocateLoadingId(employeeId);
   try {
-    const response = await apiClient.post(`/workflow/orders/${orderId}/assign/`, {
+    // apiClient.post throws on error, returns data directly on success
+    await apiClient.post(`/workflow/orders/${orderId}/assign/`, {
       employee_id: employeeId,
     });
-    if (response.error) {
-      throw new Error(response.error || "Failed to allocate order");
-    }
     alert("Order allocated successfully!");
     setShowEmployeeModal(false);
     fetchOrders(); // Refresh orders
@@ -249,6 +248,22 @@ const allocateOrderToEmployee = async (orderId: number, employeeId: number) => {
     alert((err as Error).message);
   } finally {
     setAllocateLoadingId(null);
+  }
+};
+
+// Dispatch order and auto-generate invoice
+const dispatchOrder = async (orderId: string) => {
+  setDispatchLoadingId(orderId);
+  try {
+    // apiClient.post throws on error, returns data directly on success
+    await apiClient.post(`/orders/sales/${orderId}/dispatch/`);
+    alert("Order dispatched and invoice generated successfully!");
+    fetchOrders(); // Refresh orders
+    fetchShipments(); // Refresh shipments
+  } catch (err) {
+    alert((err as Error).message);
+  } finally {
+    setDispatchLoadingId(null);
   }
 };
 
@@ -326,16 +341,34 @@ const allocateOrderToEmployee = async (orderId: number, employeeId: number) => {
     cell: ({ row }: { row: any }) =>{
       const employee = row.original.employee;
       const isAllocated = !!employee;
+      const orderId = row.original.order;
+      const orderStatus = row.original.status?.toLowerCase();
+      const canDispatch = isAllocated && orderStatus === 'allocated';
+      const isDispatching = dispatchLoadingId === orderId;
+      
        return (
-      <Button
-        className={isAllocated 
-          ? "bg-gray-500 text-gray-300 px-3 py-1 rounded cursor-not-allowed opacity-50" 
-          : "bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"}
-        onClick={() => !isAllocated && fetchEmployeesForOrder(row.original.order)}
-        disabled={isAllocated}
-      >
-        {isAllocated ? "Allocated" : "Allocate"}
-      </Button>
+        <div className="flex gap-2">
+          <Button
+            className={isAllocated 
+              ? "bg-gray-500 text-gray-300 px-3 py-1 rounded cursor-not-allowed opacity-50" 
+              : "bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"}
+            onClick={() => !isAllocated && fetchEmployeesForOrder(row.original.order)}
+            disabled={isAllocated}
+          >
+            {isAllocated ? "Allocated" : "Allocate"}
+          </Button>
+          {isAllocated && (
+            <Button
+              className={canDispatch 
+                ? "bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700" 
+                : "bg-gray-500 text-gray-300 px-3 py-1 rounded cursor-not-allowed opacity-50"}
+              onClick={() => canDispatch && dispatchOrder(orderId)}
+              disabled={!canDispatch || isDispatching}
+            >
+              {isDispatching ? "Dispatching..." : "Dispatch"}
+            </Button>
+          )}
+        </div>
     );
   },
 },
@@ -371,9 +404,10 @@ const fetchOrders = useCallback(async () => {
       return;
     }
     // Use documented endpoint: GET /api/orders/sales/
-    const response = await apiClient.get<any[]>(`/orders/sales/`);
-    if (response.error) throw new Error(response.error);
-    setOrders(response.data || []);
+    // apiClient.get returns data directly, throws on error
+    const response = await apiClient.get<any>(`/orders/sales/`);
+    const orders = response?.results || response || [];
+    setOrders(orders);
   } catch (err) {
     setOrdersError((err as Error).message);
     setOrders([]);
@@ -387,10 +421,8 @@ const approveOrder = async (orderId: string) => {
   setApproveLoadingId(orderId as any);
   try {
     // Use documented endpoint: POST /api/orders/sales/{order_id}/confirm/
-    const response = await apiClient.post(`/orders/sales/${orderId}/confirm/`);
-    if (response.error) {
-      throw new Error(response.error || "Failed to confirm order");
-    }
+    // apiClient.post throws on error, returns data directly on success
+    await apiClient.post(`/orders/sales/${orderId}/confirm/`);
     alert("Order confirmed successfully!");
     fetchOrders();
   } catch (err) {
@@ -434,14 +466,11 @@ useEffect(() => {
         return;
     }
       // Use orders API to get confirmed orders
+      // apiClient.get returns data directly, throws on error
       const response = await apiClient.get<any>(`/orders/sales/`);
 
-      if (response.error) {
-        throw new Error(response.error);
-      }
-
       // Map orders to shipment format for the table
-      const ordersData = response.data?.results || response.data || [];
+      const ordersData = response?.results || response || [];
       const shipmentData = ordersData
         .filter((order: any) => order.status === 'CONFIRMED' || order.status === 'PROCESSING')
         .map((order: any) => ({
@@ -477,21 +506,37 @@ useEffect(() => {
     }
 
     // Fetch orders to calculate counts
-    const ordersResponse = await apiClient.get<any[]>(`/orders/sales/`);
-    const orders = ordersResponse.data || [];
+    // apiClient.get returns data directly, throws on error
+    const ordersResponse = await apiClient.get<any>(`/orders/sales/`);
+    const ordersData = ordersResponse?.results || ordersResponse || [];
     
     // Calculate counts from orders
-    const totalOrders = orders.length;
-    const pendingOrders = orders.filter((o: any) => o.status === "DRAFT" || o.status === "CONFIRMED").length;
+    const totalOrders = ordersData.length;
+    const pendingOrders = ordersData.filter((o: any) => o.status === "DRAFT" || o.status === "CONFIRMED").length;
 
     // Fetch parties to get customer/store count
-    const partiesResponse = await apiClient.get<any[]>(`/party/parties/?party_type=CUSTOMER`);
-    const numStores = partiesResponse.data?.length || 0;
+    let numStores = 0;
+    try {
+      const partiesResponse = await apiClient.get<any>(`/party/parties/?party_type=CUSTOMER`);
+      const partiesData = partiesResponse?.parties || partiesResponse?.results || partiesResponse || [];
+      numStores = partiesData.length;
+    } catch (partyErr) {
+      console.log("Could not fetch parties:", partyErr);
+    }
+
+    // Fetch employees/delivery agents count
+    let deliveryAgentsCount = 0;
+    try {
+      const employeesResponse = await apiClient.get<any>(`/workflow/employees/available/`);
+      deliveryAgentsCount = employeesResponse?.employees?.length || 0;
+    } catch (empErr) {
+      console.log("Could not fetch employees:", empErr);
+    }
 
     setOverviewData({
       totalOrders,
       numStores,
-      deliveryAgents: 0, // Would need HR/employee endpoint
+      deliveryAgents: deliveryAgentsCount,
       pendingOrders,
     });
 

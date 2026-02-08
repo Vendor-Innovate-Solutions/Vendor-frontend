@@ -81,11 +81,9 @@ export function LoginForm({
 
         // Get user context to determine routing
         try {
-          const contextResponse = await apiClient.get<ContextResponse>("/users/me/context/");
+          const context = await apiClient.get<ContextResponse>("/users/me/context/");
 
-          if (contextResponse.data) {
-            const context = contextResponse.data;
-
+          if (context) {
             // Route based on context
             // 1. Check if role is not selected
             if (!context.role || !context.role_selected) {

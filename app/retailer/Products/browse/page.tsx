@@ -76,16 +76,14 @@ const BrowseProductsPage = () => {
 
   const fetchCompanies = async () => {
     try {
-      const response = await apiClient.get<PaginatedResponse<Company> | Company[]>('/portal/companies/');
-      if (response.data) {
-        const companiesList = Array.isArray(response.data) 
-          ? response.data 
-          : (response.data as PaginatedResponse<Company>).results || [];
-        // Filter for approved connections (case-insensitive)
-        setCompanies(companiesList.filter((c: Company) => 
-          c.status && c.status.toUpperCase() === 'APPROVED'
-        ));
-      }
+      const data = await apiClient.get<Company[] | PaginatedResponse<Company>>('/portal/companies/');
+      const companiesList = Array.isArray(data) 
+        ? data 
+        : (data as PaginatedResponse<Company>).results || [];
+      // Filter for approved connections (case-insensitive)
+      setCompanies(companiesList.filter((c: Company) => 
+        c.status && c.status.toUpperCase() === 'APPROVED'
+      ));
     } catch (error) {
       console.error('Failed to fetch companies:', error);
       setError('Failed to load connected companies');
@@ -105,13 +103,11 @@ const BrowseProductsPage = () => {
       if (searchQuery) params.append('search', searchQuery);
       if (inStockOnly) params.append('in_stock', 'true');
       
-      const response = await apiClient.get<PaginatedResponse<Product> | Product[]>(`${url}${params.toString()}`);
-      if (response.data) {
-        const productsList = Array.isArray(response.data) 
-          ? response.data 
-          : (response.data as PaginatedResponse<Product>).results || [];
-        setProducts(productsList);
-      }
+      const data = await apiClient.get<Product[] | PaginatedResponse<Product>>(`${url}${params.toString()}`);
+      const productsList = Array.isArray(data) 
+        ? data 
+        : (data as PaginatedResponse<Product>).results || [];
+      setProducts(productsList);
     } catch (error) {
       console.error('Failed to fetch products:', error);
       setError('Failed to load products');
@@ -122,14 +118,12 @@ const BrowseProductsPage = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await apiClient.get<PaginatedResponse<{name: string}> | {name: string}[]>('/portal/categories/');
-      if (response.data) {
-        const categoriesList = Array.isArray(response.data) 
-          ? response.data 
-          : (response.data as PaginatedResponse<{name: string}>).results || [];
-        const uniqueCategories = Array.from(new Set(categoriesList.map((c: any) => c.name)));
-        setCategories(uniqueCategories as string[]);
-      }
+      const data = await apiClient.get<{name: string}[] | PaginatedResponse<{name: string}>>('/portal/categories/');
+      const categoriesList = Array.isArray(data) 
+        ? data 
+        : (data as PaginatedResponse<{name: string}>).results || [];
+      const uniqueCategories = Array.from(new Set(categoriesList.map((c: any) => c.name)));
+      setCategories(uniqueCategories as string[]);
     } catch (error) {
       console.error('Failed to fetch categories:', error);
     }

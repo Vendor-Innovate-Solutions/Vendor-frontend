@@ -71,17 +71,10 @@ const CompaniesPage = () => {
   useEffect(() => {
     const checkProfile = async () => {
       try {
-        const contextResponse = await apiClient.get<UserContext>('/users/me/context/');
+        const context = await apiClient.get<UserContext>('/users/me/context/');
         
-        if (contextResponse.data) {
-          const context = contextResponse.data;
-          
-          // If is_portal_user is false, profile not complete - redirect to setup
-          if (!context.is_portal_user) {
-            router.replace('/retailer/setup');
-            return;
-          }
-        } else {
+        // If is_portal_user is false, profile not complete - redirect to setup
+        if (!context.is_portal_user) {
           router.replace('/retailer/setup');
           return;
         }
@@ -105,9 +98,9 @@ const CompaniesPage = () => {
     setLoading(true);
     try {
       // Get companies from retailer connections API
-      const response = await apiClient.get<Company[]>('/portal/companies/');
-      if (response.data && Array.isArray(response.data)) {
-        const companiesList = response.data.map((c) => ({
+      const data = await apiClient.get<Company[]>('/portal/companies/');
+      if (Array.isArray(data)) {
+        const companiesList = data.map((c: Company) => ({
           id: c.id,
           company_id: c.company_id,
           company_name: c.company_name,
@@ -129,19 +122,17 @@ const CompaniesPage = () => {
   const fetchPublicCompanies = async () => {
     try {
       // Use Portal companies discover API
-      const response = await apiClient.get<PaginatedResponse<PublicCompany> | PublicCompany[]>('/portal/companies/discover/');
-      if (response.data) {
-        const publicList = Array.isArray(response.data) 
-          ? response.data 
-          : (response.data as PaginatedResponse<PublicCompany>).results || [];
-        // Map to expected format
-        setPublicCompanies(publicList.map((c) => ({
-          id: c.company_code || c.id,
-          name: c.company_name || c.name,
-          description: c.description,
-          contact_email: c.contact_email
-        })));
-      }
+      const data = await apiClient.get<PaginatedResponse<PublicCompany> | PublicCompany[]>('/portal/companies/discover/');
+      const publicList = Array.isArray(data) 
+        ? data 
+        : (data as PaginatedResponse<PublicCompany>).results || [];
+      // Map to expected format
+      setPublicCompanies(publicList.map((c: PublicCompany) => ({
+        id: c.company_code || c.id,
+        name: c.company_name || c.name,
+        description: c.description,
+        contact_email: c.contact_email
+      })));
     } catch (error) {
       console.error('Failed to fetch public companies:', error);
     }
@@ -159,19 +150,15 @@ const CompaniesPage = () => {
     
     try {
       // Use new join-by-company-code API
-      const response = await apiClient.post<JoinCompanyResponse>('/portal/join-by-company-code/', {
+      const data = await apiClient.post<JoinCompanyResponse>('/portal/join-by-company-code/', {
         company_code: inviteCode.toUpperCase()
       });
       
-      if (response.data) {
-        setSuccess(response.data.message || 'Successfully joined company!');
-        setInviteCode('');
-        setActiveTab('connected');
-        // Refresh companies list
-        fetchConnectedCompanies();
-      } else if (response.error) {
-        setError(response.error);
-      }
+      setSuccess(data.message || 'Successfully joined company!');
+      setInviteCode('');
+      setActiveTab('connected');
+      // Refresh companies list
+      fetchConnectedCompanies();
     } catch (error: any) {
       console.error('Failed to join by code:', error);
       setError(error?.message || 'Failed to join company');
@@ -187,20 +174,16 @@ const CompaniesPage = () => {
     
     try {
       // Use complete-profile API with company_id to request connection
-      const response = await apiClient.post('/portal/complete-profile/', {
+      await apiClient.post('/portal/complete-profile/', {
         company_id: companyId
       });
       
-      if (response.error) {
-        setError(response.error || 'Failed to send request');
-      } else {
-        setSuccess('Connection request sent! Awaiting approval.');
-        setSelectedCompany(null);
-        setRequestMessage('');
-        fetchConnectedCompanies();
-      }
-    } catch (error) {
-      setError('Failed to send request. Please try again.');
+      setSuccess('Connection request sent! Awaiting approval.');
+      setSelectedCompany(null);
+      setRequestMessage('');
+      fetchConnectedCompanies();
+    } catch (error: any) {
+      setError(error?.message || 'Failed to send request. Please try again.');
     } finally {
       setRequestingApproval(false);
     }

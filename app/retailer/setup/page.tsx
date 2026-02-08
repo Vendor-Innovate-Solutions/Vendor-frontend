@@ -60,16 +60,13 @@ const RetailerOnboarding = () => {
   const checkExistingProfile = async () => {
     try {
       // Use context API to check if retailer is already registered
-      const contextResponse = await apiClient.get<UserContext>('/users/me/context/');
+      // apiClient.get returns data directly, not wrapped in .data
+      const context = await apiClient.get<any>('/users/me/context/');
       
-      if (contextResponse.data) {
-        const context = contextResponse.data;
-        
-        // If is_portal_user is true, profile is complete - go to dashboard
-        if (context.is_portal_user) {
-          router.replace('/retailer');
-          return;
-        }
+      // If is_portal_user is true, profile is complete - go to dashboard
+      if (context?.is_portal_user) {
+        router.replace('/retailer');
+        return;
       }
     } catch (error) {
       // Context check failed, continue with setup

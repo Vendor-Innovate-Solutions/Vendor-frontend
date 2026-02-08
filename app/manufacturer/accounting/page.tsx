@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { FileText, UserPlus, FileInput, Building2, Settings, CreditCard } from "lucide-react";
+import { FileText, UserPlus, FileInput, Building2, Settings, CreditCard, Receipt, CheckCircle, BookOpen, Scale } from "lucide-react";
 import Link from 'next/link';
-import { API_URL ,fetchWithAuth} from "@/utils/auth_fn";
+import { apiClient } from '@/utils/api';
 
 export default function AccountingDashboard() {
   const [stats, setStats] = useState({
@@ -14,43 +14,36 @@ export default function AccountingDashboard() {
   });
 
   useEffect(() => {
-  const fetchStats = async () => {
-    const companyId = localStorage.getItem('company_id');
-    if (!companyId) return;
+    const fetchStats = async () => {
+      try {
+        // Fetch all invoices for the company using apiClient
+        // apiClient.get returns data directly, not wrapped in .data
+        const invoicesResponse = await apiClient.get<any[]>('/invoices/');
+        const invoices = Array.isArray(invoicesResponse)
+          ? invoicesResponse
+          : (invoicesResponse as any)?.results || [];
 
-    // Fetch total invoices count
-    const countRes = await fetchWithAuth(`${API_URL}/invoices/count/?company=${companyId}`);
-    const countData = await countRes.json();
+        // Calculate stats
+        const pendingPayments = invoices.filter(
+          (inv: any) => inv.status && ['DRAFT', 'POSTED'].includes(inv.status)
+        ).length;
 
-    // Fetch all invoices for the company
-    const invoicesRes = await fetchWithAuth(`${API_URL}/invoices/?company=${companyId}`);
-    const invoicesData = await invoicesRes.json();
+        const totalRevenue = invoices.reduce(
+          (sum: number, inv: any) => sum + (parseFloat(inv.grand_total) || 0), 0
+        );
 
-    // Support both paginated and plain array responses
-    const invoices = Array.isArray(invoicesData)
-      ? invoicesData
-      : Array.isArray(invoicesData.results)
-        ? invoicesData.results
-        : [];
+        setStats({
+          totalInvoices: invoices.length,
+          pendingPayments,
+          totalRevenue,
+        });
+      } catch (error) {
+        console.error('Error fetching accounting stats:', error);
+      }
+    };
 
-    // Calculate pending payments and total revenue
-    let pendingPayments = invoices.filter(
-      (inv: any) => inv.payment_status && inv.payment_status.toLowerCase() === 'unpaid'
-    ).length;
-
-    let totalRevenue = invoices.reduce(
-      (sum: number, inv: any) => sum + (parseFloat(inv.grand_total) || 0), 0
-    );
-
-    setStats({
-      totalInvoices: countData.count || invoices.length,
-      pendingPayments,
-      totalRevenue,
-    });
-  };
-
-  fetchStats();
-}, []);
+    fetchStats();
+  }, []);
 
   const menuItems = [
     { icon: <FileText className="h-6 w-6" />, title: "Create New Bill", href: "/manufacturer/accounting/createBill" },
@@ -59,6 +52,10 @@ export default function AccountingDashboard() {
     { icon: <Building2 className="h-6 w-6" />, title: "Vendor Bills", href: "/manufacturer/accounting/vendorBills" },
     { icon: <Settings className="h-6 w-6" />, title: "Configure Documents", href: "/manufacturer/accounting/configureDocuments" },
     { icon: <CreditCard className="h-6 w-6" />, title: "Track Payment", href: "/manufacturer/accounting/trackPayment" },
+    { icon: <Receipt className="h-6 w-6" />, title: "Create Vouchers", href: "/manufacturer/accounting/vouchers/create" },
+    { icon: <CheckCircle className="h-6 w-6" />, title: "Post Vouchers", href: "/manufacturer/accounting/vouchers/post" },
+    { icon: <BookOpen className="h-6 w-6" />, title: "Ledger Reports", href: "/manufacturer/accounting/ledgers" },
+    { icon: <Scale className="h-6 w-6" />, title: "Trial Balance", href: "/manufacturer/accounting/trial-balance" },
   ];
 
   return (
@@ -90,7 +87,7 @@ export default function AccountingDashboard() {
                 <CardTitle className="text-lg text-blue-400">Total Revenue</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold text-white">${stats.totalRevenue.toLocaleString()}</p>
+                <p className="text-3xl font-bold text-white">₹{stats.totalRevenue.toLocaleString()}</p>
               </CardContent>
             </Card>
           </div>

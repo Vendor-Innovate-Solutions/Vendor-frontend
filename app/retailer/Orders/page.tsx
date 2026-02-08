@@ -91,17 +91,11 @@ const OrdersPage = () => {
   useEffect(() => {
     const checkProfile = async () => {
       try {
-        const contextResponse = await apiClient.get<UserContext>('/users/me/context/');
+        // apiClient.get returns data directly, not wrapped in .data
+        const context = await apiClient.get<UserContext>('/users/me/context/');
         
-        if (contextResponse.data) {
-          const context = contextResponse.data;
-          
-          // If is_portal_user is false, profile not complete - redirect to setup
-          if (!context.is_portal_user) {
-            router.replace('/retailer/setup');
-            return;
-          }
-        } else {
+        // If is_portal_user is false, profile not complete - redirect to setup
+        if (!context?.is_portal_user) {
           router.replace('/retailer/setup');
           return;
         }
@@ -133,13 +127,12 @@ const OrdersPage = () => {
   const fetchOrders = async () => {
     setLoading(true);
     try {
+      // apiClient.get returns data directly
       const response = await apiClient.get<PaginatedResponse<Order> | Order[]>('/portal/my-orders/');
-      if (response.data) {
-        const ordersList = Array.isArray(response.data) 
-          ? response.data 
-          : (response.data as PaginatedResponse<Order>).results || [];
-        setOrders(ordersList);
-      }
+      const ordersList = Array.isArray(response) 
+        ? response 
+        : (response as PaginatedResponse<Order>).results || [];
+      setOrders(ordersList);
     } catch (error) {
       console.error('Failed to fetch orders:', error);
     }
@@ -149,9 +142,10 @@ const OrdersPage = () => {
   const fetchConnectedCompanies = async () => {
     try {
       // Get companies from retailer connections API
+      // apiClient.get returns data directly
       const response = await apiClient.get<any[]>('/portal/companies/');
-      if (response.data && Array.isArray(response.data)) {
-        const companiesList = response.data
+      if (response && Array.isArray(response)) {
+        const companiesList = response
           .filter((c) => c.status === 'APPROVED')
           .map((c) => ({
             id: c.company_id || c.id,
@@ -172,11 +166,12 @@ const OrdersPage = () => {
   const fetchProducts = async (companyId: string) => {
     try {
       // Use Portal products API with company filter
+      // apiClient.get returns data directly
       const response = await apiClient.get<Product[]>(
         `/portal/products/?company_id=${companyId}`
       );
-      if (response.data) {
-        setProducts(response.data);
+      if (response) {
+        setProducts(Array.isArray(response) ? response : []);
       }
     } catch (error) {
       console.error('Failed to fetch products:', error);

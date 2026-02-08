@@ -28,7 +28,7 @@ async function refreshAccessToken(): Promise<string | null> {
 
   try {
     // Auth endpoints are at root level, not under /api
-    const response = await fetch(`http://127.0.0.1:8000/auth/token/refresh/`, {
+    const response = await fetch(`http://127.0.0.1:8000/auth/refresh/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -76,14 +76,15 @@ function clearTokens() {
 function redirectToLogin() {
   clearTokens();
   if (typeof window !== "undefined") {
-    window.location.href = "/authentication";
+    // Use replace to prevent back button returning to protected page
+    window.location.replace("/authentication");
   }
 }
 
 /**
  * Get authorization headers
  */
-function getAuthHeaders(accessToken?: string): Record<string, string> {
+export function getAuthHeaders(accessToken?: string): Record<string, string> {
   const token = accessToken || localStorage.getItem("access_token");
   const companyId = localStorage.getItem("company_id");
   
@@ -115,27 +116,63 @@ export async function api<T = unknown>(
 ): Promise<ApiResponse<T>> {
   const url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint}`;
 
+  // Extract body from options
+  const { headers: _, body, ...restOptions } = options;
+
   // Build headers object for fetch
   const headersInit: Record<string, string> = {
-    "Content-Type": "application/json",
     "Accept": "application/json",
   };
 
+  // Don't set Content-Type for FormData - browser will set it with boundary
+  const isFormData = body instanceof FormData;
+  if (!isFormData) {
+    headersInit["Content-Type"] = "application/json";
+  }
+
   if (requiresAuth) {
-    const token = localStorage.getItem("access_token");
-    if (token) {
-      headersInit["Authorization"] = `Bearer ${token}`;
+    // Check if we're in a browser environment
+    if (typeof window === "undefined") {
+      console.error("Cannot access localStorage in server-side rendering");
+      return {
+        data: null,
+        error: "Not authenticated",
+        status: 401,
+      };
     }
+
+    const token = localStorage.getItem("access_token");
+    
+    // Debug logging
+    console.log("API Call Debug:", {
+      endpoint: url,
+      hasToken: !!token,
+      tokenType: typeof token,
+      tokenValue: token === null ? "NULL" : (token === "null" ? "STRING_NULL" : "HAS_VALUE"),
+    });
+    
+    // Strict token validation
+    if (!token || token === "null" || token === "undefined" || token.trim() === "") {
+      console.error("No valid access token found in localStorage", {
+        token,
+        type: typeof token
+      });
+      redirectToLogin();
+      return {
+        data: null,
+        error: "No authentication token. Please login.",
+        status: 401,
+      };
+    }
+    
+    headersInit["Authorization"] = `Bearer ${token}`;
     
     // Add company ID header if available
     const companyId = localStorage.getItem("company_id");
-    if (companyId) {
+    if (companyId && companyId !== "null" && companyId !== "undefined" && companyId.trim() !== "") {
       headersInit["X-Company-ID"] = companyId;
     }
   }
-
-  // Extract body from options
-  const { headers: _, body, ...restOptions } = options;
 
   try {
     let response = await fetch(url, {
@@ -155,10 +192,14 @@ export async function api<T = unknown>(
       if (newAccessToken) {
         // Retry the request with new token
         const retryHeaders: Record<string, string> = {
-          "Content-Type": "application/json",
           "Accept": "application/json",
           "Authorization": `Bearer ${newAccessToken}`,
         };
+        
+        // Don't set Content-Type for FormData
+        if (!isFormData) {
+          retryHeaders["Content-Type"] = "application/json";
+        }
         
         // Add company ID header if available
         const companyId = localStorage.getItem("company_id");
@@ -233,20 +274,75 @@ export async function api<T = unknown>(
  * Convenience methods for common HTTP methods
  */
 export const apiClient = {
-  get: <T = unknown>(endpoint: string, requiresAuth: boolean = true) =>
-    api<T>(endpoint, { method: "GET" }, requiresAuth),
+  get: async <T = unknown>(endpoint: string, requiresAuth: boolean = true): Promise<T> => {
+    const result = await api<T>(endpoint, { method: "GET" }, requiresAuth);
+    if (result.error) throw new Error(result.error);
+    return result.data as T;
+  },
 
-  post: <T = unknown>(endpoint: string, body?: unknown, requiresAuth: boolean = true) =>
-    api<T>(endpoint, { method: "POST", body: body ? JSON.stringify(body) : undefined }, requiresAuth),
+  post: async <T = unknown>(endpoint: string, body?: unknown, requiresAuth: boolean = true): Promise<T> => {
+    const isFormData = body instanceof FormData;
+    const result = await api<T>(
+      endpoint, 
+      { 
+        method: "POST", 
+        body: isFormData ? body : (body ? JSON.stringify(body) : undefined) 
+      }, 
+      requiresAuth
+    );
+    if (result.error) throw new Error(result.error);
+    return result.data as T;
+  },
 
-  put: <T = unknown>(endpoint: string, body?: unknown, requiresAuth: boolean = true) =>
-    api<T>(endpoint, { method: "PUT", body: body ? JSON.stringify(body) : undefined }, requiresAuth),
+  put: async <T = unknown>(endpoint: string, body?: unknown, requiresAuth: boolean = true): Promise<T> => {
+    const isFormData = body instanceof FormData;
+    const result = await api<T>(
+      endpoint, 
+      { 
+        method: "PUT", 
+        body: isFormData ? body : (body ? JSON.stringify(body) : undefined) 
+      }, 
+      requiresAuth
+    );
+    if (result.error) throw new Error(result.error);
+    return result.data as T;
+  },
 
-  patch: <T = unknown>(endpoint: string, body?: unknown, requiresAuth: boolean = true) =>
-    api<T>(endpoint, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }, requiresAuth),
+  patch: async <T = unknown>(endpoint: string, body?: unknown, requiresAuth: boolean = true): Promise<T> => {
+    const isFormData = body instanceof FormData;
+    const result = await api<T>(
+      endpoint, 
+      { 
+        method: "PATCH", 
+        body: isFormData ? body : (body ? JSON.stringify(body) : undefined) 
+      }, 
+      requiresAuth
+    );
+    if (result.error) throw new Error(result.error);
+    return result.data as T;
+  },
 
-  delete: <T = unknown>(endpoint: string, requiresAuth: boolean = true) =>
-    api<T>(endpoint, { method: "DELETE" }, requiresAuth),
+  delete: async <T = unknown>(endpoint: string, requiresAuth: boolean = true): Promise<T> => {
+    const result = await api<T>(endpoint, { method: "DELETE" }, requiresAuth);
+    if (result.error) throw new Error(result.error);
+    return result.data as T;
+  },
+
+  /**
+   * Upload file with FormData
+   */
+  upload: async <T = unknown>(endpoint: string, formData: FormData, requiresAuth: boolean = true): Promise<T> => {
+    const result = await api<T>(
+      endpoint,
+      {
+        method: "POST",
+        body: formData,
+      },
+      requiresAuth
+    );
+    if (result.error) throw new Error(result.error);
+    return result.data as T;
+  },
 };
 
 /**

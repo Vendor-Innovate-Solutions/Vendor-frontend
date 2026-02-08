@@ -18,6 +18,10 @@ type AlertProps = {
     );
   }
   
+  export function AlertTitle({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+    return <h5 className={`font-medium mb-1 ${className}`}>{children}</h5>;
+  }
+
   export function AlertDescription({ children }: { children: React.ReactNode }) {
     return <div className="text-sm font-medium">{children}</div>;
   }

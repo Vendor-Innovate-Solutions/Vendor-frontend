@@ -155,7 +155,7 @@ export default function StockCountPage() {
       
       console.log("Sending product payload:", JSON.stringify(payload));
       
-      const response = await apiClient.post("/catalog/products/", payload);
+      const response = await apiClient.post("/catalog/products/", payload) as any;
 
       if (!response.error) {
         setSubmitSuccess("Product added successfully!");

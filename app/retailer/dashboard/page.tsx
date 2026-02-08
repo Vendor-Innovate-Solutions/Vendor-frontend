@@ -16,7 +16,9 @@ import {
   Plus,
   ArrowRight,
   Loader,
-  AlertCircle
+  AlertCircle,
+  X,
+  Download
 } from 'lucide-react';
 import { RetailerNavbar } from '../../../components/retailer/nav_bar';
 import { apiClient } from '../../../utils/api';
@@ -37,10 +39,69 @@ interface Invoice {
   invoice_number: string;
   invoice_date: string;
   due_date: string;
-  party_name: string;
+  company_name: string;
+  company_id: string;
   status: 'DRAFT' | 'POSTED' | 'PAID' | 'CANCELLED';
-  total_value: string;
+  subtotal: string;
+  tax_amount: string;
+  grand_total: string;
+  amount_received: string;
   outstanding_amount: string;
+  order_number?: string;
+}
+
+interface InvoiceLineItem {
+  id: string;
+  product_name: string;
+  description: string;
+  hsn_code?: string;
+  quantity: string;
+  unit?: string;
+  unit_rate: string;
+  discount_percent: string;
+  discount_amount: string;
+  taxable_value: string;
+  cgst_rate: string;
+  cgst_amount: string;
+  sgst_rate: string;
+  sgst_amount: string;
+  igst_rate: string;
+  igst_amount: string;
+  line_total: string;
+}
+
+interface InvoiceDetail {
+  id: string;
+  invoice_number: string;
+  invoice_type: string;
+  status: string;
+  invoice_date: string;
+  due_date?: string;
+  company: {
+    id: string;
+    name: string;
+    gstin?: string;
+    address?: string;
+  };
+  party: {
+    id: string;
+    name: string;
+    gstin?: string;
+    address?: string;
+  };
+  items: InvoiceLineItem[];
+  subtotal: string;
+  discount_total: string;
+  tax_amount: string;
+  grand_total: string;
+  amount_received: string;
+  outstanding_amount: string;
+  sales_order?: {
+    id: string;
+    order_number: string;
+  };
+  notes?: string;
+  created_at: string;
 }
 
 interface Company {
@@ -66,23 +127,42 @@ const DashboardTab = () => {
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  
+  // Invoice detail modal
+  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDetail | null>(null);
+  const [invoiceDetailLoading, setInvoiceDetailLoading] = useState(false);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+
+  // Fetch invoice details
+  const fetchInvoiceDetail = async (invoiceId: string) => {
+    setInvoiceDetailLoading(true);
+    setShowInvoiceModal(true);
+    setSelectedInvoice(null); // Reset previous invoice
+    try {
+      console.log('Fetching invoice detail for ID:', invoiceId);
+      const data = await apiClient.get<InvoiceDetail>(`/portal/my-invoices/${invoiceId}/`);
+      console.log('Invoice detail response:', data);
+      setSelectedInvoice(data);
+    } catch (error) {
+      console.error('Error fetching invoice details:', error);
+    } finally {
+      setInvoiceDetailLoading(false);
+    }
+  };
+
+  const closeInvoiceModal = () => {
+    setShowInvoiceModal(false);
+    setSelectedInvoice(null);
+  };
 
   // Check if retailer profile exists using context API
   useEffect(() => {
     const checkProfile = async () => {
       try {
-        const contextResponse = await apiClient.get<UserContext>('/users/me/context/');
+        const context = await apiClient.get<{is_portal_user: boolean}>('/users/me/context/');
         
-        if (contextResponse.data) {
-          const context = contextResponse.data;
-          
-          // If is_portal_user is false, profile not complete - redirect to setup
-          if (!context.is_portal_user) {
-            router.replace('/retailer/setup');
-            return;
-          }
-        } else {
-          // Context fetch failed, redirect to setup
+        // If is_portal_user is false, profile not complete - redirect to setup
+        if (!context.is_portal_user) {
           router.replace('/retailer/setup');
           return;
         }
@@ -105,23 +185,21 @@ const DashboardTab = () => {
     setLoading(true);
     try {
       // Fetch orders using Portal API
-      const ordersResponse = await apiClient.get<PaginatedResponse<Order> | Order[]>('/portal/my-orders/');
-      if (ordersResponse.data) {
-        const ordersList = Array.isArray(ordersResponse.data) 
-          ? ordersResponse.data 
-          : (ordersResponse.data as PaginatedResponse<Order>).results || [];
-        setRecentOrders(ordersList.slice(0, 5));
-        setStats(prev => ({
-          ...prev,
-          totalOrders: ordersList.length
-        }));
-      }
+      const ordersData = await apiClient.get<Order[] | PaginatedResponse<Order>>('/portal/my-orders/');
+      const ordersList = Array.isArray(ordersData) 
+        ? ordersData 
+        : (ordersData as PaginatedResponse<Order>).results || [];
+      setRecentOrders(ordersList.slice(0, 5));
+      setStats(prev => ({
+        ...prev,
+        totalOrders: ordersList.length
+      }));
 
       // Fetch companies from retailer connections API
-      const companiesResponse = await apiClient.get<any[]>('/portal/companies/');
-      if (companiesResponse.data && Array.isArray(companiesResponse.data)) {
-        const approvedCompanies = companiesResponse.data.filter((c) => c.status === 'APPROVED');
-        setCompanies(approvedCompanies.map((c) => ({
+      const companiesData = await apiClient.get<any[]>('/portal/companies/');
+      if (Array.isArray(companiesData)) {
+        const approvedCompanies = companiesData.filter((c: any) => c.status === 'APPROVED');
+        setCompanies(approvedCompanies.map((c: any) => ({
           id: c.company_id || c.id,
           company_name: c.company_name,
           status: c.status?.toLowerCase() || 'connected',
@@ -133,17 +211,14 @@ const DashboardTab = () => {
         }));
       }
 
-      // Fetch invoices - try portal endpoint or general invoices
+      // Fetch invoices from portal my-invoices endpoint
       try {
-        const invoicesResponse = await apiClient.get<PaginatedResponse<Invoice> | Invoice[]>('/invoices/');
-        if (invoicesResponse.data) {
-          const invoicesList = Array.isArray(invoicesResponse.data) 
-            ? invoicesResponse.data 
-            : (invoicesResponse.data as PaginatedResponse<Invoice>).results || [];
-          setInvoices(invoicesList);
+        const invoicesData = await apiClient.get<Invoice[]>('/portal/my-invoices/');
+        if (Array.isArray(invoicesData)) {
+          setInvoices(invoicesData);
           
-          // Calculate pending payments
-          const pendingAmount = invoicesList.reduce((sum: number, inv: Invoice) => 
+          // Calculate pending payments (outstanding amount)
+          const pendingAmount = invoicesData.reduce((sum: number, inv: Invoice) => 
             sum + parseFloat(inv.outstanding_amount || '0'), 0);
           setStats(prev => ({
             ...prev,
@@ -510,10 +585,10 @@ const DashboardTab = () => {
                         {invoices.map(invoice => (
                           <tr key={invoice.id} className="border-b border-neutral-700/50 hover:bg-neutral-800/50">
                             <td className="py-3 px-4 font-medium">{invoice.invoice_number}</td>
-                            <td className="py-3 px-4">{invoice.party_name}</td>
+                            <td className="py-3 px-4">{invoice.company_name}</td>
                             <td className="py-3 px-4">{new Date(invoice.invoice_date).toLocaleDateString()}</td>
                             <td className="py-3 px-4">{new Date(invoice.due_date).toLocaleDateString()}</td>
-                            <td className="py-3 px-4">₹{parseFloat(invoice.total_value || '0').toLocaleString()}</td>
+                            <td className="py-3 px-4">₹{parseFloat(invoice.grand_total || '0').toLocaleString()}</td>
                             <td className="py-3 px-4 font-semibold text-red-400">
                               ₹{parseFloat(invoice.outstanding_amount || '0').toLocaleString()}
                             </td>
@@ -524,7 +599,11 @@ const DashboardTab = () => {
                             </td>
                             <td className="py-3 px-4">
                               <div className="flex gap-2">
-                                <button className="p-2 hover:bg-neutral-700 rounded-lg transition-colors">
+                                <button 
+                                  onClick={() => fetchInvoiceDetail(invoice.id)}
+                                  className="p-2 hover:bg-neutral-700 rounded-lg transition-colors"
+                                  title="View Invoice"
+                                >
                                   <Eye className="h-4 w-4" />
                                 </button>
                                 <button 
@@ -594,7 +673,7 @@ const DashboardTab = () => {
                                 {invoice.status}
                               </span>
                             </div>
-                            <p className="text-sm text-neutral-400 mb-1">{invoice.party_name}</p>
+                            <p className="text-sm text-neutral-400 mb-1">{invoice.company_name}</p>
                             <p className="text-sm text-neutral-400">
                               Due: {new Date(invoice.due_date).toLocaleDateString()}
                               {new Date(invoice.due_date) < new Date() && (
@@ -623,6 +702,220 @@ const DashboardTab = () => {
           </div>
         </div>
       </div>
+
+      {/* Invoice Detail Modal */}
+      {showInvoiceModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-neutral-900 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-neutral-800 sticky top-0 bg-neutral-900">
+              <h2 className="text-xl font-semibold">Invoice Details</h2>
+              <button 
+                onClick={closeInvoiceModal}
+                className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {invoiceDetailLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader className="h-8 w-8 animate-spin text-green-500" />
+              </div>
+            ) : selectedInvoice ? (
+              <div className="p-6 space-y-6">
+                {/* Invoice Header */}
+                <div className="flex flex-col md:flex-row justify-between gap-6">
+                  <div>
+                    <h3 className="text-2xl font-bold text-green-400 mb-2">
+                      {selectedInvoice.invoice_number}
+                    </h3>
+                    <div className="space-y-1 text-sm text-neutral-400">
+                      <p>Date: {new Date(selectedInvoice.invoice_date).toLocaleDateString()}</p>
+                      {selectedInvoice.due_date && (
+                        <p>Due Date: {new Date(selectedInvoice.due_date).toLocaleDateString()}</p>
+                      )}
+                      {selectedInvoice.sales_order && (
+                        <p>Order: {selectedInvoice.sales_order.order_number}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedInvoice.status)}`}>
+                      {selectedInvoice.status}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Company Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-neutral-800 rounded-lg">
+                  <div>
+                    <h4 className="text-sm font-medium text-neutral-400 mb-2">From (Seller)</h4>
+                    <p className="font-semibold">{selectedInvoice.company.name}</p>
+                    {selectedInvoice.company.gstin && (
+                      <p className="text-sm text-neutral-400">GSTIN: {selectedInvoice.company.gstin}</p>
+                    )}
+                    {selectedInvoice.company.address && (
+                      <p className="text-sm text-neutral-400">{selectedInvoice.company.address}</p>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-neutral-400 mb-2">To (Buyer)</h4>
+                    <p className="font-semibold">{selectedInvoice.party.name}</p>
+                    {selectedInvoice.party.gstin && (
+                      <p className="text-sm text-neutral-400">GSTIN: {selectedInvoice.party.gstin}</p>
+                    )}
+                    {selectedInvoice.party.address && (
+                      <p className="text-sm text-neutral-400">{selectedInvoice.party.address}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Line Items */}
+                <div>
+                  <h4 className="font-semibold mb-3">Invoice Items</h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-neutral-700 text-neutral-400">
+                          <th className="text-left py-2 px-3">#</th>
+                          <th className="text-left py-2 px-3">Product</th>
+                          <th className="text-left py-2 px-3">HSN</th>
+                          <th className="text-right py-2 px-3">Qty</th>
+                          <th className="text-right py-2 px-3">Rate</th>
+                          <th className="text-right py-2 px-3">GST %</th>
+                          <th className="text-right py-2 px-3">GST Amt</th>
+                          <th className="text-right py-2 px-3">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedInvoice.items.map((item, index) => {
+                          const gstRate = parseFloat(item.cgst_rate || '0') + parseFloat(item.sgst_rate || '0') + parseFloat(item.igst_rate || '0');
+                          const gstAmount = parseFloat(item.cgst_amount || '0') + parseFloat(item.sgst_amount || '0') + parseFloat(item.igst_amount || '0');
+                          return (
+                            <tr key={item.id} className="border-b border-neutral-800">
+                              <td className="py-2 px-3">{index + 1}</td>
+                              <td className="py-2 px-3">
+                                <p className="font-medium">{item.product_name}</p>
+                                {item.description && item.description !== item.product_name && (
+                                  <p className="text-xs text-neutral-400">{item.description}</p>
+                                )}
+                              </td>
+                              <td className="py-2 px-3">{item.hsn_code || '-'}</td>
+                              <td className="text-right py-2 px-3">{parseFloat(item.quantity)}</td>
+                              <td className="text-right py-2 px-3">₹{parseFloat(item.unit_rate).toLocaleString()}</td>
+                              <td className="text-right py-2 px-3">{gstRate}%</td>
+                              <td className="text-right py-2 px-3">₹{gstAmount.toFixed(2)}</td>
+                              <td className="text-right py-2 px-3 font-medium">₹{parseFloat(item.line_total).toLocaleString()}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Totals */}
+                <div className="flex justify-end">
+                  <div className="w-full md:w-80 space-y-2 p-4 bg-neutral-800 rounded-lg">
+                    <div className="flex justify-between">
+                      <span className="text-neutral-400">Subtotal</span>
+                      <span>₹{parseFloat(selectedInvoice.subtotal).toLocaleString()}</span>
+                    </div>
+                    {parseFloat(selectedInvoice.discount_total) > 0 && (
+                      <div className="flex justify-between text-green-400">
+                        <span>Discount</span>
+                        <span>-₹{parseFloat(selectedInvoice.discount_total).toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-neutral-400">Tax</span>
+                      <span>₹{parseFloat(selectedInvoice.tax_amount).toLocaleString()}</span>
+                    </div>
+                    <div className="border-t border-neutral-700 pt-2 flex justify-between font-semibold text-lg">
+                      <span>Grand Total</span>
+                      <span className="text-green-400">₹{parseFloat(selectedInvoice.grand_total).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-neutral-400">
+                      <span>Paid</span>
+                      <span>₹{parseFloat(selectedInvoice.amount_received).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between font-semibold text-red-400">
+                      <span>Outstanding</span>
+                      <span>₹{parseFloat(selectedInvoice.outstanding_amount).toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                {selectedInvoice.notes && (
+                  <div className="p-4 bg-neutral-800 rounded-lg">
+                    <h4 className="text-sm font-medium text-neutral-400 mb-2">Notes</h4>
+                    <p className="text-sm">{selectedInvoice.notes}</p>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex justify-between items-center pt-4 border-t border-neutral-800">
+                  <button
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(`http://localhost:8000/api/invoices/${selectedInvoice.id}/download/`, {
+                          method: 'GET',
+                          headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                            'X-Company-ID': localStorage.getItem('company_id') || '',
+                          },
+                        });
+                        
+                        if (!response.ok) throw new Error('Failed to download PDF');
+                        
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `invoice_${selectedInvoice.invoice_number}.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                      } catch (error) {
+                        alert('Failed to download invoice PDF');
+                        console.error(error);
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-400 hover:bg-blue-600 hover:text-white rounded-lg transition-colors"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download PDF
+                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={closeInvoiceModal}
+                      className="px-4 py-2 border border-neutral-700 text-neutral-300 hover:bg-neutral-800 rounded-lg transition-colors"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={() => {
+                        closeInvoiceModal();
+                        setActiveTab('payments');
+                      }}
+                      className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                    >
+                      Pay Now
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-neutral-400">
+                Invoice details not found
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

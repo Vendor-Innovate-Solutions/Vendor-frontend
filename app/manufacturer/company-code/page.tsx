@@ -17,15 +17,11 @@ const CompanyCodePage = () => {
   const fetchCompanyCode = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get<CompanyCodeData>('/company/connection/generate-code/');
-      if (response.data) {
-        setCodeData(response.data);
-      } else if (response.error) {
-        setError(response.error);
-      }
+      const data = await apiClient.get<CompanyCodeData>('/company/connection/generate-code/');
+      setCodeData(data);
     } catch (error: any) {
       console.error('Failed to fetch company code:', error);
-      setError('Failed to load company code. Please make sure you have an active company.');
+      setError(error.message || 'Failed to load company code. Please make sure you have an active company.');
     } finally {
       setLoading(false);
     }
