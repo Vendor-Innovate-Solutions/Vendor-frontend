@@ -76,11 +76,18 @@ interface Notification {
 }
 
 interface Shipment {
-  shipment_id: number;
+  shipment_id: number | string;
   shipment_date: string;
   status: string;
-  order: number;
-  employee: number;
+  order: number | string;
+  employee: number | null;
+  employee_name?: string | null;
+  order_number?: string;
+  source?: "erp" | "cfn";
+  origin_city?: string;
+  destination_city?: string;
+  cargo_type?: string;
+  cargo_weight_tons?: number;
 }
 
 interface ShipmentResponse {
@@ -189,6 +196,7 @@ type Payment = {
 // MQTT Topics
 const ANOMALY_TOPIC = "manufacturing/anomalies";
 const RASPBERRY_PI_PRESENCE_TOPIC = "device/raspberry-pi/presence/raspberrypi";
+const CFN_API_BASE_URL = process.env.NEXT_PUBLIC_CFN_API_URL || "http://localhost:8001";
 
 const Dashboard: React.FC = () => {
   const [overviewData, setOverviewData] = useState<OverviewCard>(testData);
@@ -277,7 +285,23 @@ const dispatchOrder = async (orderId: string) => {
       accessorKey: "order_number",
       header: "Order ID",
       cell: ({ row }: { row: any }) => {
-        return row.original.order_number || row.original.order || "N/A";
+        const source = row.original.source || "erp";
+        const orderLabel = row.original.order_number || row.original.order || "N/A";
+        const route =
+          row.original.origin_city && row.original.destination_city
+            ? `${row.original.origin_city} -> ${row.original.destination_city}`
+            : null;
+
+        if (source === "cfn") {
+          return (
+            <div className="flex flex-col">
+              <span>{orderLabel}</span>
+              {route && <span className="text-xs text-blue-300">{route}</span>}
+            </div>
+          );
+        }
+
+        return orderLabel;
       },
     },
     {
@@ -312,9 +336,10 @@ const dispatchOrder = async (orderId: string) => {
       header: "Status",
       cell: ({ row }: { row: any }) => {
         const status = row.getValue("status") as string;
+        const source = row.original.source || "erp";
         let statusClass = "";
 
-        switch (status?.toLowerCase()) {
+        switch (status?.toLowerCase().replace(/\s+/g, "_")) {
           case "delivered":
             statusClass = "text-green-500";
             break;
@@ -325,6 +350,13 @@ const dispatchOrder = async (orderId: string) => {
           case "pending allocation":
             statusClass = "text-yellow-500";
             break;
+          case "planned":
+            statusClass = "text-blue-400";
+            break;
+          case "in_transit":
+          case "in transit":
+            statusClass = "text-cyan-400";
+            break;
           case "processing":
             statusClass = "text-blue-500";
             break;
@@ -332,13 +364,31 @@ const dispatchOrder = async (orderId: string) => {
             statusClass = "text-gray-400";
         }
 
-        return <span className={statusClass}>{status}</span>;
+        return (
+          <div className="flex items-center gap-2">
+            <span className={statusClass}>{status}</span>
+            {source === "cfn" && (
+              <span className="text-[10px] px-2 py-0.5 rounded bg-blue-900/40 text-blue-200 border border-blue-700">
+                CFN
+              </span>
+            )}
+          </div>
+        );
       },
     },
     {
     header: "Actions",
     id: "actions",
     cell: ({ row }: { row: any }) =>{
+      const source = row.original.source || "erp";
+      if (source === "cfn") {
+        return (
+          <span className="text-xs px-2 py-1 rounded border border-blue-700 bg-blue-900/30 text-blue-200">
+            Managed in CFN
+          </span>
+        );
+      }
+
       const employee = row.original.employee;
       const isAllocated = !!employee;
       const orderId = row.original.order;
@@ -459,34 +509,82 @@ useEffect(() => {
   const fetchShipments = useCallback(async () => {
     try {
       setShipmentsLoading(true);
-      const companyId = localStorage.getItem("company_id");
-      if (!companyId) {
-        setShipmentsError("No company selected");
-        setShipmentsLoading(false);
-        return;
-    }
-      // Use orders API to get confirmed orders
-      // apiClient.get returns data directly, throws on error
-      const response = await apiClient.get<any>(`/orders/sales/`);
-
-      // Map orders to shipment format for the table
-      const ordersData = response?.results || response || [];
-      const shipmentData = ordersData
-        .filter((order: any) => order.status === 'CONFIRMED' || order.status === 'PROCESSING')
-        .map((order: any) => ({
-          shipment_id: order.id,
-          order: order.id,
-          order_number: order.order_number,
-          shipment_date: order.delivery_date || order.order_date,
-          status: order.assigned_employee_id ? 'Allocated' : 'Pending Allocation',
-          employee: order.assigned_employee_id || null,
-          employee_name: order.assigned_employee_name || null,
-        }));
-
-      setShipments(shipmentData);
       setShipmentsError(null);
+
+      const companyId = localStorage.getItem("company_id");
+
+      const erpPromise = companyId
+        ? apiClient.get<any>(`/orders/sales/`)
+        : Promise.resolve([]);
+      const cfnPromise = fetch(`${CFN_API_BASE_URL}/shipments?limit=50`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const [erpResult, cfnResult] = await Promise.allSettled([erpPromise, cfnPromise]);
+
+      let erpShipments: Shipment[] = [];
+      let cfnShipments: Shipment[] = [];
+      const errors: string[] = [];
+
+      if (erpResult.status === "fulfilled") {
+        const response = erpResult.value;
+        const ordersData = response?.results || response || [];
+        erpShipments = ordersData
+          .filter((order: any) => order.status === "CONFIRMED" || order.status === "PROCESSING")
+          .map((order: any) => ({
+            shipment_id: order.id,
+            order: order.id,
+            order_number: order.order_number,
+            shipment_date: order.delivery_date || order.order_date,
+            status: order.assigned_employee_id ? "Allocated" : "Pending Allocation",
+            employee: order.assigned_employee_id || null,
+            employee_name: order.assigned_employee_name || null,
+            source: "erp",
+          }));
+      } else {
+        errors.push("ERP shipment sync failed");
+      }
+
+      if (cfnResult.status === "fulfilled") {
+        if (cfnResult.value.ok) {
+          const cfnPayload = await cfnResult.value.json();
+          const cfnRows = cfnPayload?.shipments || cfnPayload?.results || [];
+          cfnShipments = cfnRows.map((shipment: any) => ({
+            shipment_id: shipment.id || shipment._id || shipment.shipment_ref || "CFN",
+            order: shipment.shipment_ref || shipment.id || shipment._id || "CFN",
+            order_number: shipment.shipment_ref || `CFN-${shipment.id || shipment._id || ""}`,
+            shipment_date: shipment.pickup_datetime || shipment.created_at || new Date().toISOString(),
+            status: shipment.status
+              ? String(shipment.status).replace(/_/g, " ")
+              : "planned",
+            employee: null,
+            employee_name: null,
+            source: "cfn",
+            origin_city: shipment.origin_city,
+            destination_city: shipment.destination_city,
+            cargo_type: shipment.cargo_type,
+            cargo_weight_tons: shipment.cargo_weight_tons,
+          }));
+        } else {
+          errors.push(`CFN shipment sync failed (${cfnResult.value.status})`);
+        }
+      } else {
+        errors.push("CFN shipment sync failed");
+      }
+
+      const mergedShipments = [...erpShipments, ...cfnShipments].sort((a, b) => {
+        const aTime = new Date(a.shipment_date || 0).getTime();
+        const bTime = new Date(b.shipment_date || 0).getTime();
+        return bTime - aTime;
+      });
+
+      setShipments(mergedShipments);
+      if (errors.length && mergedShipments.length === 0) {
+        setShipmentsError(errors.join(" | "));
+      }
     } catch (err) {
-      console.error("Error fetching orders for delivery:", err);
+      console.error("Error fetching shipments:", err);
       setShipmentsError((err as Error).message);
     } finally {
       setShipmentsLoading(false);
@@ -897,7 +995,7 @@ useEffect(() => {
               <Card className="shadow-lg rounded-xl px-4 pt-4 transition-all duration-300 hover:shadow-xl h-auto py-6 border border-gray-600">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-lg font-medium text-white flex items-center gap-2">
-                    <TableIcon className="w-5 h-5 text-blue-400" /> Shipment Details
+                    <TableIcon className="w-5 h-5 text-blue-400" /> Shipment Details (ERP + CFN)
                   </h2>
                   
                 </div>
@@ -963,8 +1061,8 @@ useEffect(() => {
                     </div>
                   ) : (
                     <div className="text-center py-8">
-                      <p className="text-gray-400">No shipments created yet.</p>
-                      <p className="text-sm text-gray-500 mt-2">Shipments will appear here once orders are confirmed and processed.</p>
+                      <p className="text-gray-400">No shipments found yet.</p>
+                      <p className="text-sm text-gray-500 mt-2">Shipments from ERP orders and CFN planning will appear here.</p>
                     </div>
                   ))}
               </Card>
