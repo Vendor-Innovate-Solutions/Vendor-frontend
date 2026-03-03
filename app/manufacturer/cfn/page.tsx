@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 const CFN_ROUTE_MAP: Record<string, string> = {
@@ -20,7 +20,7 @@ const buildIframeUrl = (baseUrl: string, routePath: string): string => {
   return `${baseUrl}${routePath}${routePath.includes("?") ? "&" : "?"}${query}`;
 };
 
-export default function CfnIntegrationPage() {
+function CfnContent() {
   const searchParams = useSearchParams();
   const [frameLoading, setFrameLoading] = useState(true);
   const [frameError, setFrameError] = useState(false);
@@ -82,3 +82,12 @@ export default function CfnIntegrationPage() {
     </div>
   );
 }
+
+export default function CfnIntegrationPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><p className="text-neutral-400">Loading...</p></div>}>
+      <CfnContent />
+    </Suspense>
+  );
+}
+
