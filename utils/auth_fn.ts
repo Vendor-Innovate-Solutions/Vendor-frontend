@@ -1,7 +1,8 @@
 
 import { authStorage } from './localStorage';
+import { API_BASE_URL, AUTH_BASE_URL } from './config';
 
-const API_URL = "http://127.0.0.1:8000/api";
+const API_URL = AUTH_BASE_URL;
 
 /**
  * Authentication and Password Reset Utilities
@@ -82,7 +83,7 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Re
 // Utility function to handle API response errors
 const handleApiResponse = async (response: Response) => {
   const data = await response.json();
-  
+
   if (!response.ok) {
     // Handle different HTTP status codes
     if (response.status === 400) {
@@ -97,7 +98,7 @@ const handleApiResponse = async (response: Response) => {
       return { error: data.message || data.detail || 'An error occurred. Please try again.' };
     }
   }
-  
+
   return data;
 };
 
@@ -158,9 +159,9 @@ const verifyOTP = async (username: string, otp: string): Promise<VerifyOTPRespon
 
 // 3. Reset Password
 const resetPassword = async (
-  username: string, 
-  otp: string, 
-  newPassword: string, 
+  username: string,
+  otp: string,
+  newPassword: string,
   confirmPassword: string
 ): Promise<ResetPasswordResponse> => {
   try {
@@ -169,9 +170,9 @@ const resetPassword = async (
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ 
-        username, 
-        otp, 
+      body: JSON.stringify({
+        username,
+        otp,
         new_password: newPassword,
         confirm_password: confirmPassword
       })

@@ -19,6 +19,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginFormData } from "@/lib/schemas/auth";
 import { api, apiClient } from "@/utils/api";
+import { AUTH_BASE_URL } from "@/utils/config";
 
 interface LoginResponse {
   access: string;
@@ -63,7 +64,7 @@ export function LoginForm({
     try {
       // Login doesn't require auth (getting fresh token)
       // Auth endpoints are at root level, not under /api
-      const loginResponse = await api<LoginResponse>("http://127.0.0.1:8000/auth/login/", {
+      const loginResponse = await api<LoginResponse>(`${AUTH_BASE_URL}/auth/login/`, {
         method: "POST",
         body: JSON.stringify(data),
       }, false);
@@ -107,7 +108,7 @@ export function LoginForm({
               }
               return;
             }
-            
+
             // Other external roles (WHOLESALER, SUPPLIER, etc.) need manufacturer link
             if (context.role !== "MANUFACTURER" && context.role !== "RETAILER" && !context.manufacturer_linked) {
               router.replace("/authentication/setup/external");
