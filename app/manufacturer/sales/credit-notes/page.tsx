@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Plus, FileText, Search, Filter } from "lucide-react";
 import Link from "next/link";
 import { getAuthHeaders } from "@/utils/api";
+import { API_BASE_URL } from "@/utils/config";
 
 interface CreditNote {
   id: string;
@@ -39,7 +40,7 @@ export default function CreditNotesPage() {
       }
       
       const response = await fetch(
-        `http://localhost:8000/api/orders/credit-notes/?${params.toString()}`,
+        `${API_BASE_URL}/orders/credit-notes/?${params.toString()}`,
         { headers }
       );
       

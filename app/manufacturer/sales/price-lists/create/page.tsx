@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getAuthHeaders } from "@/utils/api";
 import { toast } from "sonner";
+import { API_BASE_URL } from "@/utils/config";
 
 interface Product {
   id: string;
@@ -50,7 +51,7 @@ export default function CreatePriceListPage() {
   const fetchProducts = async () => {
     try {
       const headers = getAuthHeaders();
-      const response = await fetch("http://localhost:8000/api/catalog/products/", { headers });
+      const response = await fetch(`${API_BASE_URL}/catalog/products/", { headers });
       if (response.ok) {
         const data = await response.json();
         console.log("Products response:", data);
@@ -111,7 +112,7 @@ export default function CreatePriceListPage() {
         valid_to: formData.valid_to || null,
       };
 
-      const response = await fetch("http://localhost:8000/api/orders/price-lists/", {
+      const response = await fetch(`${API_BASE_URL}/orders/price-lists/", {
         method: "POST",
         headers,
         body: JSON.stringify(priceListPayload),
@@ -131,7 +132,7 @@ export default function CreatePriceListPage() {
       
       if (validItems.length > 0) {
         for (const item of validItems) {
-          await fetch(`http://localhost:8000/api/orders/price-lists/${priceList.id}/items/`, {
+          await fetch(`${API_BASE_URL}/orders/price-lists/${priceList.id}/items/`, {
             method: "POST",
             headers,
             body: JSON.stringify(item),

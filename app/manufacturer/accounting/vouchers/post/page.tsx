@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, CheckCircle, FileText, Calendar, User, CreditCard, Loader } from 'lucide-react';
 import { getAuthHeaders } from '@/utils/api';
 import { toast } from 'sonner';
+import { API_BASE_URL } from "@/utils/config";
 
 interface Payment {
   id: string;
@@ -30,7 +31,7 @@ export default function PostVouchersPage() {
 
   const fetchPayments = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/payments/', {
+      const response = await fetch(`${API_BASE_URL}/payments/`, {
         headers: getAuthHeaders(),
       });
       const data = await response.json();
@@ -50,7 +51,7 @@ export default function PostVouchersPage() {
 
     setPosting(paymentId);
     try {
-      const response = await fetch(`http://localhost:8000/api/payments/${paymentId}/post_voucher/`, {
+      const response = await fetch(`${API_BASE_URL}/payments/${paymentId}/post_voucher/`, {
         method: 'POST',
         headers: getAuthHeaders(),
       });

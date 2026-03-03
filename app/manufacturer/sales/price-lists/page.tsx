@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Plus, Tag, Search, Filter, Calendar } from "lucide-react";
 import Link from "next/link";
 import { getAuthHeaders } from "@/utils/api";
+import { API_BASE_URL } from "@/utils/config";
 
 interface PriceList {
   id: string;
@@ -44,7 +45,7 @@ export default function PriceListsPage() {
       }
       
       const response = await fetch(
-        `http://localhost:8000/api/orders/price-lists/?${params.toString()}`,
+        `${API_BASE_URL}/orders/price-lists/?${params.toString()}`,
         { headers }
       );
       

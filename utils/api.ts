@@ -3,7 +3,8 @@
  * Use this for all authenticated API calls in the application
  */
 
-const API_BASE_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
+const AUTH_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || "http://127.0.0.1:8000";
 
 interface ApiResponse<T = unknown> {
   data: T | null;
@@ -21,14 +22,14 @@ interface RefreshResponse {
  */
 async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = localStorage.getItem("refresh_token");
-  
+
   if (!refreshToken) {
     return null;
   }
 
   try {
     // Auth endpoints are at root level, not under /api
-    const response = await fetch(`http://127.0.0.1:8000/auth/token/refresh/`, {
+    const response = await fetch(`${AUTH_BASE_URL}/auth/token/refresh/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -43,7 +44,7 @@ async function refreshAccessToken(): Promise<string | null> {
     }
 
     const data: RefreshResponse = await response.json();
-    
+
     if (data.access) {
       localStorage.setItem("access_token", data.access);
       // Some APIs also return a new refresh token
@@ -86,7 +87,7 @@ function redirectToLogin() {
 export function getAuthHeaders(accessToken?: string): Record<string, string> {
   const token = accessToken || localStorage.getItem("access_token");
   const companyId = localStorage.getItem("company_id");
-  
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
@@ -133,7 +134,7 @@ export async function api<T = unknown>(
     if (token) {
       headersInit["Authorization"] = `Bearer ${token}`;
     }
-    
+
     // Add company ID header if available
     const companyId = localStorage.getItem("company_id");
     if (companyId) {
@@ -156,9 +157,9 @@ export async function api<T = unknown>(
     // If unauthorized and requires auth, try to refresh token
     if (response.status === 401 && requiresAuth) {
       console.log("Access token expired, attempting refresh...");
-      
+
       const newAccessToken = await refreshAccessToken();
-      
+
       if (newAccessToken) {
         // Retry the request with new token
         const retryHeaders: Record<string, string> = {
@@ -170,7 +171,7 @@ export async function api<T = unknown>(
         if (!isFormData) {
           retryHeaders["Content-Type"] = "application/json";
         }
-        
+
         // Add company ID header if available
         const companyId = localStorage.getItem("company_id");
         if (companyId) {
@@ -208,16 +209,16 @@ export async function api<T = unknown>(
     // Parse response
     let data: T | null = null;
     const contentType = response.headers.get("content-type");
-    
+
     if (contentType && contentType.includes("application/json")) {
       data = await response.json();
     }
 
     if (!response.ok) {
-      const errorMessage = (data as Record<string, unknown>)?.detail || 
-                          (data as Record<string, unknown>)?.error || 
-                          (data as Record<string, unknown>)?.message ||
-                          `Request failed with status ${response.status}`;
+      const errorMessage = (data as Record<string, unknown>)?.detail ||
+        (data as Record<string, unknown>)?.error ||
+        (data as Record<string, unknown>)?.message ||
+        `Request failed with status ${response.status}`;
       return {
         data: null,
         error: errorMessage as string,

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Download, Scale, TrendingUp, TrendingDown, Loader, Calendar } from 'lucide-react';
 import { getAuthHeaders } from '@/utils/api';
 import { toast } from 'sonner';
+import { API_BASE_URL } from "@/utils/config";
 
 interface FinancialYear {
   id: string;
@@ -51,7 +52,7 @@ export default function TrialBalancePage() {
 
   const fetchFinancialYears = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/accounting/financial-years/', {
+      const response = await fetch(`${API_BASE_URL}/accounting/financial-years/`, {
         headers: getAuthHeaders(),
       });
       if (!response.ok) {
@@ -79,8 +80,8 @@ export default function TrialBalancePage() {
     setLoading(true);
     try {
       const url = selectedFY
-        ? `http://localhost:8000/api/accounting/reports/trial-balance/?financial_year_id=${selectedFY}`
-        : 'http://localhost:8000/api/accounting/reports/trial-balance/';
+        ? `${API_BASE_URL}/accounting/reports/trial-balance/?financial_year_id=${selectedFY}`
+        : `${API_BASE_URL}/accounting/reports/trial-balance/`;
       
       const response = await fetch(url, {
         headers: getAuthHeaders(),

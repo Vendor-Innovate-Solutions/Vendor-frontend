@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save } from 'lucide-react';
 import { getAuthHeaders } from '@/utils/api';
 import { toast } from 'sonner';
+import { API_BASE_URL } from "@/utils/config";
 
 export default function CreateAccountGroupPage() {
   const router = useRouter();
@@ -22,7 +23,7 @@ export default function CreateAccountGroupPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/api/accounting/groups/', {
+      const response = await fetch(`${API_BASE_URL}/accounting/groups/`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(formData),

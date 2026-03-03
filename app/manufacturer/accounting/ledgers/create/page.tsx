@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save } from 'lucide-react';
 import { getAuthHeaders } from '@/utils/api';
 import { toast } from 'sonner';
+import { API_BASE_URL } from "@/utils/config";
 
 interface AccountGroup {
   id: string;
@@ -43,7 +44,7 @@ export default function CreateLedgerPage() {
 
   const fetchGroups = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/accounting/groups/', {
+      const response = await fetch(`${API_BASE_URL}/accounting/groups/`, {
         headers: getAuthHeaders(),
       });
       const data = await response.json();
@@ -56,7 +57,7 @@ export default function CreateLedgerPage() {
 
   const fetchFinancialYears = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/accounting/financial-years/', {
+      const response = await fetch(`${API_BASE_URL}/accounting/financial-years/`, {
         headers: getAuthHeaders(),
       });
       const data = await response.json();
@@ -79,7 +80,7 @@ export default function CreateLedgerPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/api/accounting/ledgers/', {
+      const response = await fetch(`${API_BASE_URL}/accounting/ledgers/`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(formData),

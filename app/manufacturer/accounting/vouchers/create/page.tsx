@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus, Trash2, Save } from 'lucide-react';
 import { getAuthHeaders } from '@/utils/api';
 import { toast } from 'sonner';
+import { API_BASE_URL } from "@/utils/config";
 
 interface Party {
   id: string;
@@ -40,7 +41,7 @@ export default function CreateVoucherPage() {
 
   const fetchParties = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/party/parties/', {
+      const response = await fetch(`${API_BASE_URL}/party/parties/`, {
         headers: getAuthHeaders(),
       });
       const data = await response.json();
@@ -53,7 +54,7 @@ export default function CreateVoucherPage() {
 
   const fetchBankAccounts = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/accounting/ledgers/?group__name=Bank Accounts', {
+      const response = await fetch(`${API_BASE_URL}/accounting/ledgers/?group__name=Bank Accounts`, {
         headers: getAuthHeaders(),
       });
       const data = await response.json();
@@ -69,7 +70,7 @@ export default function CreateVoucherPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/api/payments/create/', {
+      const response = await fetch(`${API_BASE_URL}/payments/create/`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(formData),

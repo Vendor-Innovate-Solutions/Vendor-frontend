@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getAuthHeaders } from "@/utils/api";
 import { toast } from "sonner";
+import { API_BASE_URL } from "@/utils/config";
 
 interface CreditNoteDetail {
   id: string;
@@ -53,7 +54,7 @@ export default function CreditNoteDetailPage({ params }: { params: { id: string 
     try {
       const headers = getAuthHeaders();
       const response = await fetch(
-        `http://localhost:8000/api/orders/credit-notes/${params.id}/`,
+        `${API_BASE_URL}/orders/credit-notes/${params.id}/`,
         { headers }
       );
 

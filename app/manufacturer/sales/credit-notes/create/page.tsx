@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getAuthHeaders } from "@/utils/api";
 import { toast } from "sonner";
+import { API_BASE_URL } from "@/utils/config";
 
 interface Party {
   id: string;
@@ -71,7 +72,7 @@ export default function CreateCreditNotePage() {
   const fetchParties = async () => {
     try {
       const headers = getAuthHeaders();
-      const response = await fetch("http://localhost:8000/api/party/parties/", { headers });
+      const response = await fetch(`${API_BASE_URL}/party/parties/", { headers });
       if (response.ok) {
         const data = await response.json();
         console.log("Parties response:", data);
@@ -92,7 +93,7 @@ export default function CreateCreditNotePage() {
     try {
       const headers = getAuthHeaders();
       const response = await fetch(
-        `http://localhost:8000/api/invoices/?party=${partyId}`,
+        `${API_BASE_URL}/invoices/?party=${partyId}`,
         { headers }
       );
       if (response.ok) {
@@ -114,7 +115,7 @@ export default function CreateCreditNotePage() {
   const fetchProducts = async () => {
     try {
       const headers = getAuthHeaders();
-      const response = await fetch("http://localhost:8000/api/catalog/products/", { headers });
+      const response = await fetch(`${API_BASE_URL}/catalog/products/", { headers });
       if (response.ok) {
         const data = await response.json();
         console.log("Products response:", data);
@@ -201,7 +202,7 @@ export default function CreateCreditNotePage() {
         }),
       };
 
-      const response = await fetch("http://localhost:8000/api/orders/credit-notes/", {
+      const response = await fetch(`${API_BASE_URL}/orders/credit-notes/", {
         method: "POST",
         headers,
         body: JSON.stringify(payload),

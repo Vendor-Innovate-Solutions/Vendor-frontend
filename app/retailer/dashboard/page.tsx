@@ -23,6 +23,7 @@ import {
 import { RetailerNavbar } from '../../../components/retailer/nav_bar';
 import { apiClient } from '../../../utils/api';
 import { UserContext, PaginatedResponse } from '@/types/api';
+import { API_BASE_URL } from "@/utils/config";
 
 interface Order {
   id: string;
@@ -860,7 +861,7 @@ const DashboardTab = () => {
                   <button
                     onClick={async () => {
                       try {
-                        const response = await fetch(`http://localhost:8000/api/invoices/${selectedInvoice.id}/download/`, {
+                        const response = await fetch(`${API_BASE_URL}/invoices/${selectedInvoice.id}/download/`, {
                           method: 'GET',
                           headers: {
                             'Authorization': `Bearer ${localStorage.getItem('access_token')}`,

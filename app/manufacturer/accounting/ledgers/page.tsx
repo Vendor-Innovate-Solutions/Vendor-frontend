@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Search, BookOpen, TrendingUp, TrendingDown, FileText, Loader, Plus } from 'lucide-react';
 import { getAuthHeaders } from '@/utils/api';
 import { toast } from 'sonner';
+import { API_BASE_URL } from "@/utils/config";
 
 interface Ledger {
   id: string;
@@ -41,7 +42,7 @@ export default function LedgersPage() {
 
   const fetchLedgers = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/accounting/ledgers/', {
+      const response = await fetch(`${API_BASE_URL}/accounting/ledgers/`, {
         headers: getAuthHeaders(),
       });
       const data = await response.json();
