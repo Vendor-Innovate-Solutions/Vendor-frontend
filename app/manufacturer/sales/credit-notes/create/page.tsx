@@ -72,7 +72,7 @@ export default function CreateCreditNotePage() {
   const fetchParties = async () => {
     try {
       const headers = getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/party/parties/", { headers });
+      const response = await fetch(`${API_BASE_URL}/party/parties/`, { headers });
       if (response.ok) {
         const data = await response.json();
         console.log("Parties response:", data);
@@ -115,7 +115,7 @@ export default function CreateCreditNotePage() {
   const fetchProducts = async () => {
     try {
       const headers = getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/catalog/products/", { headers });
+      const response = await fetch(`${API_BASE_URL}/catalog/products/`, { headers });
       if (response.ok) {
         const data = await response.json();
         console.log("Products response:", data);
@@ -202,7 +202,7 @@ export default function CreateCreditNotePage() {
         }),
       };
 
-      const response = await fetch(`${API_BASE_URL}/orders/credit-notes/", {
+      const response = await fetch(`${API_BASE_URL}/orders/credit-notes/`, {
         method: "POST",
         headers,
         body: JSON.stringify(payload),

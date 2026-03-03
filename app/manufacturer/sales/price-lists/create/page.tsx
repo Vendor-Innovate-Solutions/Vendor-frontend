@@ -51,7 +51,7 @@ export default function CreatePriceListPage() {
   const fetchProducts = async () => {
     try {
       const headers = getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/catalog/products/", { headers });
+      const response = await fetch(`${API_BASE_URL}/catalog/products/`, { headers });
       if (response.ok) {
         const data = await response.json();
         console.log("Products response:", data);
@@ -112,7 +112,7 @@ export default function CreatePriceListPage() {
         valid_to: formData.valid_to || null,
       };
 
-      const response = await fetch(`${API_BASE_URL}/orders/price-lists/", {
+      const response = await fetch(`${API_BASE_URL}/orders/price-lists/`, {
         method: "POST",
         headers,
         body: JSON.stringify(priceListPayload),
